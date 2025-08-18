@@ -1,0 +1,266 @@
+#!/usr/bin/env Rscript
+# r_analysis/batch_mapping_analysis.R
+# Batch processing script for alignment mapping and BAM filtering
+
+# Load required functions
+source("functions/utils.R")
+source("functions/mapping_functions.R")
+
+# Main function for batch mapping analysis
+main_mapping_analysis <- function(config_file) {
+
+  cat("Starting Mapping Batch Analysis\n")
+  cat("===============================\n\n")
+
+  # Load required packages
+  load_required_packages()
+
+  # Read configuration
+  config <- read_config(config_file)
+
+  # Validate configuration
+  required_params <- c("alignment_summary_path", "filtered_nanotel_dir",
+                       "bam_dir", "output_dir")
+  missing_params <- required_params[!(required_params %in% names(config))]
+  if (length(missing_params) > 0) {
+    stop("Missing required configuration parameters: ", paste(missing_params, collapse = ", "))
+  }
+
+  # Set default parameters
+  min_mapq <- config$min_mapq %||% 10
+  head_max_start <- config$head_max_start %||% 5000
+  tail_min_end <- config$tail_min_end %||% 35000
+  filter_threshold_c <- config$filter_threshold_c %||% 0.75
+  filter_threshold_g <- config$filter_threshold_g %||% 0.75
+  mod_threshold_m <- config$mod_threshold_m %||% 0.75
+
+  log_message("Configuration loaded successfully")
+  log_message(paste("Alignment summary:", config$alignment_summary_path))
+  log_message(paste("Filtered NanoTel dir:", config$filtered_nanotel_dir))
+  log_message(paste("BAM directory:", config$bam_dir))
+  log_message(paste("Output directory:", config$output_dir))
+
+  # Find filtered NanoTel files
+  nanotel_files <- find_files_by_pattern(config$filtered_nanotel_dir,
+                                         "filtered_summary.*\\.csv$")
+
+  if (length(nanotel_files) == 0) {
+    stop("No filtered NanoTel files found in: ", config$filtered_nanotel_dir)
+  }
+
+  # Find BAM files
+  bam_info <- find_barcode_bam_files(config$bam_dir)
+
+  if (nrow(bam_info) == 0) {
+    stop("No barcode BAM files found in: ", config$bam_dir)
+  }
+
+  log_message(paste("Found", length(nanotel_files), "filtered NanoTel files"))
+  log_message(paste("Found", nrow(bam_info), "BAM files"))
+
+  # Match NanoTel files with BAM files
+  barcode_configs <- create_barcode_configs(
+    nanotel_files = nanotel_files,
+    bam_info = bam_info,
+    alignment_summary_path = config$alignment_summary_path,
+    output_dir = config$output_dir,
+    min_mapq = min_mapq,
+    head_max_start = head_max_start,
+    tail_min_end = tail_min_end,
+    filter_threshold_c = filter_threshold_c,
+    filter_threshold_g = filter_threshold_g,
+    mod_threshold_m = mod_threshold_m
+  )
+
+  if (length(barcode_configs) == 0) {
+    stop("No matching barcode configurations found")
+  }
+
+  log_message(paste("Created", length(barcode_configs), "barcode configurations"))
+
+  # Process each barcode
+  results <- list()
+  failed_barcodes <- character()
+
+  for (i in seq_along(barcode_configs)) {
+    barcode_config <- barcode_configs[[i]]
+    barcode_name <- barcode_config$barcode_name
+
+    show_progress(i, length(barcode_configs), "Processing barcodes")
+
+    tryCatch({
+      result <- process_complete_barcode_workflow(barcode_config)
+      if (!is.null(result)) {
+        results[[barcode_name]] <- result
+      }
+    }, error = function(e) {
+      log_message(paste("Error processing", barcode_name, ":", e$message), "ERROR")
+      failed_barcodes <- c(failed_barcodes, barcode_name)
+    })
+  }
+
+  log_message(paste("Processing complete. Success:", length(results),
+                    "Failed:", length(failed_barcodes)))
+
+  if (length(failed_barcodes) > 0) {
+    log_message(paste("Failed barcodes:", paste(failed_barcodes, collapse = ", ")), "WARNING")
+  }
+
+  # Generate summary report
+  if (length(results) > 0) {
+    report_file <- file.path(config$output_dir, "mapping_analysis_report.txt")
+    generate_mapping_report(results, failed_barcodes, report_file, config)
+  }
+
+  log_message("Mapping batch analysis completed!")
+
+  return(list(
+    successful_results = results,
+    failed_barcodes = failed_barcodes,
+    total_processed = length(barcode_configs)
+  ))
+}
+
+# Create barcode configuration objects
+create_barcode_configs <- function(nanotel_files, bam_info, alignment_summary_path,
+                                   output_dir, ...) {
+
+  log_message("Creating barcode configurations")
+
+  configs <- list()
+
+  for (nanotel_file in nanotel_files) {
+    # Extract barcode from NanoTel filename
+    barcode <- extract_barcode_from_path(nanotel_file)
+
+    if (is.na(barcode)) {
+      log_message(paste("Could not extract barcode from:", basename(nanotel_file)), "WARNING")
+      next
+    }
+
+    # Find matching BAM file
+    matching_bam <- bam_info[bam_info$barcode == barcode, ]
+
+    if (nrow(matching_bam) == 0) {
+      log_message(paste("No matching BAM file found for:", barcode), "WARNING")
+      next
+    }
+
+    if (nrow(matching_bam) > 1) {
+      log_message(paste("Multiple BAM files found for:", barcode, "- using first"), "WARNING")
+      matching_bam <- matching_bam[1, ]
+    }
+
+    # Create configuration
+    config <- list(
+      barcode_name = toupper(barcode),
+      alignment_summary_path = alignment_summary_path,
+      filtered_nanotel_path = nanotel_file,
+      bam_file_path = matching_bam$bam_path,
+      output_dir = output_dir,
+      ...
+    )
+
+    configs[[barcode]] <- config
+  }
+
+  log_message(paste("Created", length(configs), "valid configurations"))
+
+  return(configs)
+}
+
+# Generate mapping analysis report
+generate_mapping_report <- function(results, failed_barcodes, output_file, config) {
+
+  log_message("Generating mapping analysis report")
+
+  total_reads <- sum(sapply(results, function(x) x$read_count))
+
+  report_lines <- c(
+    "=" * 80,
+    "MAPPING BATCH ANALYSIS REPORT",
+    "=" * 80,
+    paste("Analysis date:", Sys.Date()),
+    paste("Analysis time:", format(Sys.time(), "%H:%M:%S")),
+    "",
+    "ANALYSIS PARAMETERS:",
+    paste("  Alignment summary:", config$alignment_summary_path),
+    paste("  BAM directory:", config$bam_dir),
+    paste("  Output directory:", config$output_dir),
+    paste("  Min MAPQ:", config$min_mapq %||% 10),
+    paste("  Head max start:", config$head_max_start %||% 5000),
+    paste("  Tail min end:", config$tail_min_end %||% 35000),
+    paste("  Methylation filter C:", config$filter_threshold_c %||% 0.75),
+    paste("  Methylation filter G:", config$filter_threshold_g %||% 0.75),
+    paste("  Modification threshold:", config$mod_threshold_m %||% 0.75),
+    "",
+    "PROCESSING RESULTS:",
+    paste("  Total barcodes attempted:", length(results) + length(failed_barcodes)),
+    paste("  Successful barcodes:", length(results)),
+    paste("  Failed barcodes:", length(failed_barcodes)),
+    paste("  Total telomeric reads processed:", total_reads),
+    ""
+  )
+
+  if (length(failed_barcodes) > 0) {
+    report_lines <- c(report_lines,
+                      "FAILED BARCODES:",
+                      paste("  ", failed_barcodes, collapse = "\n"),
+                      ""
+    )
+  }
+
+  report_lines <- c(report_lines, "SUCCESSFUL BARCODES:")
+
+  # Add successful barcode details
+  for (barcode in names(results)) {
+    result <- results[[barcode]]
+    report_lines <- c(report_lines,
+                      paste("  ", result$barcode, ":"),
+                      paste("    Telomeric reads:", result$read_count),
+                      paste("    Mapped file:", basename(result$mapped_file)),
+                      paste("    Filtered BAM:", basename(result$filtered_bam)),
+                      paste("    Pileup BED:", basename(result$pileup_bed)),
+                      ""
+    )
+  }
+
+  report_lines <- c(report_lines,
+                    "OUTPUT FILES GENERATED:",
+                    "  For each barcode:",
+                    "    - mapped<BARCODE>.csv (alignment + NanoTel data)",
+                    "    - filtered_<BARCODE>.bam (telomeric reads only)",
+                    "    - filtered_<BARCODE>.bam.bai (BAM index)",
+                    "    - pileup-<barcode>.bed (methylation data)",
+                    "",
+                    "NEXT STEPS:",
+                    "  1. Review mapped CSV files for data quality",
+                    "  2. Check filtered BAM files in genome viewer",
+                    "  3. Proceed with methylation analysis using BED files",
+                    "  4. Investigate any failed barcodes",
+                    "",
+                    "=" * 80
+  )
+
+  # Write report
+  writeLines(report_lines, output_file)
+
+  log_message(paste("Mapping report saved to:", basename(output_file)))
+
+  return(output_file)
+}
+
+# Command line interface
+if (!interactive()) {
+  # Parse command line arguments
+  args <- commandArgs(trailingOnly = TRUE)
+
+  if (length(args) != 1) {
+    cat("Usage: Rscript batch_mapping_analysis.R <config_file>\n")
+    cat("\n")
+    cat("Arguments:\n")
+    cat("  config_file: JSON configuration file with analysis parameters\n")
+    cat("\n")
+    cat("Example:\n")
+    cat("  Rscript batch_mapping_analysis.R config/mapping_config.json\n")
+    quit(status
