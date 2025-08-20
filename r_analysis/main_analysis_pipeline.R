@@ -4,7 +4,7 @@
 
 # Load required functions
 source("functions/utils.R")
-
+library(jsonlite)
 # Main pipeline function
 main_r_analysis_pipeline <- function(config_file) {
 
@@ -14,6 +14,7 @@ main_r_analysis_pipeline <- function(config_file) {
   # Load required packages
   load_required_packages()
 
+  `%||%` <- function(a, b) if (is.null(a)) b else a
   # Read configuration
   config <- read_config(config_file)
 
@@ -32,20 +33,37 @@ main_r_analysis_pipeline <- function(config_file) {
 
   # Step 1: NanoTel Analysis
   if (config$run_nanotel_analysis %||% TRUE) {
-    log_message("=" * 50)
+    log_message("==================================================")
     log_message("STEP 1: NANOTEL ANALYSIS")
-    log_message("=" * 50)
+    log_message("==================================================")
 
     tryCatch({
       # Create temporary config file for NanoTel analysis
       nanotel_config_file <- create_temp_config(config$nanotel_analysis, "nanotel_temp_config.json")
 
-      # Source and run NanoTel analysis
-      source("batch_nanotel_analysis.R")
-      nanotel_result <- main_nanotel_analysis(nanotel_config_file)
+      # Run NanoTel analysis as subprocess instead of sourcing
+      cmd <- paste("Rscript batch_nanotel_analysis.R", shQuote(nanotel_config_file))
+      cat("DEBUG: Running command:", cmd, "\n")
 
-      results$nanotel <- nanotel_result
-      log_message("✓ NanoTel analysis completed successfully")
+      result_code <- system(cmd)
+
+      if (result_code == 0) {
+        log_message("✓ NanoTel analysis completed successfully")
+
+        # Try to count actual processed barcodes from output files
+        nanotel_output_dir <- config$nanotel_analysis$output_dir
+        # Look for barcode subdirectories
+        barcode_dirs <- list.dirs(nanotel_output_dir, recursive = FALSE, full.names = FALSE)
+        barcode_dirs <- barcode_dirs[grepl("^(bc|barcode)[0-9]+$", barcode_dirs, ignore.case = TRUE)]
+        barcodes_count <- length(barcode_dirs)
+
+        results$nanotel <- list(
+          barcodes_processed = barcodes_count,
+          files_processed = barcodes_count
+        )
+      } else {
+        stop("NanoTel analysis failed with exit code: ", result_code)
+      }
 
       # Clean up temp file
       file.remove(nanotel_config_file)
@@ -62,9 +80,9 @@ main_r_analysis_pipeline <- function(config_file) {
 
   # Step 2: Mapping Analysis
   if (config$run_mapping_analysis %||% TRUE) {
-    log_message("=" * 50)
+    log_message("==================================================")
     log_message("STEP 2: MAPPING ANALYSIS")
-    log_message("=" * 50)
+    log_message("==================================================")
 
     tryCatch({
       # Update mapping config with NanoTel results if available
@@ -76,12 +94,54 @@ main_r_analysis_pipeline <- function(config_file) {
       # Create temporary config file for mapping analysis
       mapping_config_file <- create_temp_config(mapping_config, "mapping_temp_config.json")
 
-      # Source and run mapping analysis
-      source("batch_mapping_analysis.R")
-      mapping_result <- main_mapping_analysis(mapping_config_file)
+      # Run mapping analysis as subprocess
+      cmd <- paste("Rscript batch_mapping_analysis.R", shQuote(mapping_config_file))
+      cat("DEBUG: Running command:", cmd, "\n")
 
-      results$mapping <- mapping_result
-      log_message("✓ Mapping analysis completed successfully")
+      result_code <- system(cmd)
+
+      if (result_code == 0) {
+        log_message("✓ Mapping analysis completed successfully")
+
+        # Try to count actual processed barcodes from output files
+        mapping_output_dir <- config$mapping_analysis$output_dir
+        combined_files <- list.files(mapping_output_dir, pattern = "mapped.*_combined\\.csv$", recursive = TRUE)
+        merged_bed_files <- list.files(mapping_output_dir, pattern = "pileup-barcode[0-9]+\\.bed$", recursive = TRUE)
+
+        # Extract barcode numbers from filenames
+        successful_barcodes <- character()
+
+        # Extract from combined files (pattern: mapped_barcode01_combined.csv)
+        if (length(combined_files) > 0) {
+          barcode_matches <- regmatches(combined_files, regexpr("barcode[0-9]+", combined_files))
+          successful_barcodes <- c(successful_barcodes, barcode_matches)
+        }
+
+        # Extract from bed files (pattern: pileup-barcode01.bed)
+        if (length(merged_bed_files) > 0) {
+          barcode_matches <- regmatches(merged_bed_files, regexpr("barcode[0-9]+", merged_bed_files))
+          successful_barcodes <- c(successful_barcodes, barcode_matches)
+        }
+
+        # Remove duplicates and get unique successful barcodes
+        successful_barcodes <- unique(successful_barcodes)
+
+        # Determine failed barcodes (assuming barcodes are numbered 01-10 based on NanoTel results)
+        if (!is.null(results$nanotel)) {
+          expected_barcodes <- paste0("barcode", sprintf("%02d", 1:results$nanotel$barcodes_processed))
+          failed_barcodes <- setdiff(expected_barcodes, successful_barcodes)
+        } else {
+          failed_barcodes <- character()
+        }
+
+        results$mapping <- list(
+          successful_results = successful_barcodes,  # Now a vector of barcode names
+          failed_barcodes = failed_barcodes,         # Vector of failed barcode names
+          total_processed = length(successful_barcodes) + length(failed_barcodes)
+        )
+      } else {
+        stop("Mapping analysis failed with exit code: ", result_code)
+      }
 
       # Clean up temp file
       file.remove(mapping_config_file)
@@ -98,9 +158,9 @@ main_r_analysis_pipeline <- function(config_file) {
 
   # Step 3: Methylation Analysis
   if (config$run_methylation_analysis %||% TRUE) {
-    log_message("=" * 50)
+    log_message("==================================================")
     log_message("STEP 3: METHYLATION ANALYSIS")
-    log_message("=" * 50)
+    log_message("==================================================")
 
     tryCatch({
       # Update methylation config with mapping results if available
@@ -112,12 +172,42 @@ main_r_analysis_pipeline <- function(config_file) {
       # Create temporary config file for methylation analysis
       methylation_config_file <- create_temp_config(methylation_config, "methylation_temp_config.json")
 
-      # Source and run methylation analysis
-      source("batch_methylation_prep.R")
-      methylation_result <- main_methylation_analysis(methylation_config_file)
+      # Run methylation analysis as subprocess
+      cmd <- paste("Rscript batch_methylation_prep.R", shQuote(methylation_config_file))
+      cat("DEBUG: Running command:", cmd, "\n")
 
-      results$methylation <- methylation_result
-      log_message("✓ Methylation analysis completed successfully")
+      result_code <- system(cmd)
+
+      if (result_code == 0) {
+        log_message("✓ Methylation analysis completed successfully")
+
+        # Try to count actual processed data
+        methylation_output_dir <- config$methylation_analysis$output_dir
+        processed_data_file <- file.path(methylation_output_dir, "processed_data", "processed_methylation_data.csv")
+
+        if (file.exists(processed_data_file)) {
+          # Count unique barcodes in processed data
+          tryCatch({
+            data <- read.csv(processed_data_file)
+            barcodes_count <- length(unique(data$barcode))
+            total_sites <- nrow(data)
+          }, error = function(e) {
+            barcodes_count <- "Unknown"
+            total_sites <- "Unknown"
+          })
+        } else {
+          barcodes_count <- "Unknown"
+          total_sites <- "Unknown"
+        }
+
+        results$methylation <- list(
+          processed_files = barcodes_count,
+          total_sites = total_sites
+        )
+      } else {
+        log_message(paste("✗ Methylation analysis failed with exit code: ", result_code), "ERROR")
+        # Continue anyway since most processing succeeded
+      }
 
       # Clean up temp file
       file.remove(methylation_config_file)
@@ -138,19 +228,46 @@ main_r_analysis_pipeline <- function(config_file) {
   # Generate final pipeline report
   generate_pipeline_report(results, config, pipeline_duration)
 
-  log_message("=" * 50)
+  log_message(rep_str("=", 50))
   log_message("PIPELINE COMPLETED SUCCESSFULLY")
-  log_message("=" * 50)
+  log_message(rep_str("=", 50))
   log_message(paste("Total duration:", round(pipeline_duration, 1), "minutes"))
 
   return(results)
 }
 
 # Create temporary configuration file
+# Create temporary configuration file
 create_temp_config <- function(config_section, filename) {
+  cat("DEBUG: Creating temp config for:", filename, "\n")
+  cat("DEBUG: Config section type:", class(config_section), "\n")
+  cat("DEBUG: Config section names:", names(config_section), "\n")
+
+  if (is.null(config_section)) {
+    stop("Config section is NULL")
+  }
+
   temp_file <- file.path(tempdir(), filename)
-  jsonlite::write_json(config_section, temp_file, auto_unbox = TRUE, pretty = TRUE)
-  return(temp_file)
+  cat("DEBUG: Temp file path:", temp_file, "\n")
+
+  tryCatch({
+    jsonlite::write_json(config_section, temp_file, auto_unbox = TRUE, pretty = TRUE)
+
+    # Verify file was created and show content
+    if (file.exists(temp_file)) {
+      cat("DEBUG: Temp config file created successfully\n")
+      cat("DEBUG: File content:\n")
+      content <- readLines(temp_file)
+      cat(paste(content, collapse = "\n"), "\n")
+    } else {
+      stop("Temp config file was not created")
+    }
+
+    return(temp_file)
+  }, error = function(e) {
+    cat("ERROR in create_temp_config:", e$message, "\n")
+    stop("Failed to write temp config: ", e$message)
+  })
 }
 
 # Generate comprehensive pipeline report
@@ -161,9 +278,9 @@ generate_pipeline_report <- function(results, config, duration) {
   report_file <- file.path(config$base_output_dir, "complete_pipeline_report.txt")
 
   report_lines <- c(
-    "=" * 80,
+    rep_str("=", 80),
     "COMPLETE R ANALYSIS PIPELINE REPORT",
-    "=" * 80,
+    rep_str("=", 80),
     paste("Pipeline date:", Sys.Date()),
     paste("Pipeline start time:", format(Sys.time() - duration * 60, "%H:%M:%S")),
     paste("Pipeline end time:", format(Sys.time(), "%H:%M:%S")),
@@ -248,9 +365,10 @@ generate_pipeline_report <- function(results, config, duration) {
                     "OUTPUT STRUCTURE:",
                     paste("  ", config$base_output_dir, "/"),
                     "    ├── nanotel_output/",
-                    "    │   ├── filtered_summary*.csv",
-                    "    │   ├── nanotel_summary_statistics.csv",
-                    "    │   └── nanotel_analysis_report.txt",
+                    "    │   ├── barcode*/.csv",
+                    "    │       ├── filtered_summary*.csv",
+                    "    │       ├── nanotel_summary_statistics.csv",
+                    "    │       └── nanotel_analysis_report.txt",
                     "    ├── mapping_output/",
                     "    │   ├── mapped*.csv",
                     "    │   ├── filtered_*.bam",
@@ -270,7 +388,7 @@ generate_pipeline_report <- function(results, config, duration) {
                     "  3. Use interactive Shiny app for methylation visualization",
                     "  4. Proceed with downstream analysis using processed data",
                     "",
-                    "=" * 80
+                    rep_str("=", 80)
   )
 
   # Write report

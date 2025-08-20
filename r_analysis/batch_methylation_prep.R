@@ -106,7 +106,19 @@ main_methylation_analysis <- function(config_file) {
   )
 
   report_file <- file.path(config$output_dir, "methylation_analysis_report.txt")
-  generate_methylation_report(telomeric_data, summary_stats, report_file, analysis_params)
+  tryCatch({
+    generate_methylation_report(telomeric_data, summary_stats, report_file, analysis_params)
+  }, error = function(e) {
+    log_message(paste("Warning: Could not generate final report:", e$message), "WARNING")
+    # Don't fail the entire process for a report generation error
+  })
+
+  # Create original-style interactive plot if requested
+  if (config$create_original_interactive %||% FALSE) {
+    log_message("Creating original-style interactive plot")
+    interactive_plot_file <- file.path(config$output_dir, "interactive_methylation_original.html")
+    original_plot <- create_original_interactive_plot(telomeric_data, interactive_plot_file)
+  }
 
   # Create Shiny app files if requested
   if (config$create_shiny_app %||% FALSE) {

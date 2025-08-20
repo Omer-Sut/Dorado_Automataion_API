@@ -12,6 +12,8 @@ main_nanotel_analysis <- function(config_file) {
   cat("Starting NanoTel Batch Analysis\n")
   cat("================================\n\n")
 
+  cat("DEBUG: Received config file:", config_file, "\n")
+  cat("DEBUG: Config file exists:", file.exists(config_file), "\n")
   # Load required packages
   load_required_packages()
 
@@ -83,9 +85,9 @@ generate_nanotel_report <- function(processed_data, summary_stats, output_file, 
   total_reads <- sum(sapply(processed_data, nrow))
 
   report_lines <- c(
-    "=" * 80,
+    rep_str("=", 80),
     "NANOTEL BATCH ANALYSIS REPORT",
-    "=" * 80,
+    rep_str("=", 80),
     paste("Analysis date:", Sys.Date()),
     paste("Analysis time:", format(Sys.time(), "%H:%M:%S")),
     "",
@@ -148,7 +150,7 @@ generate_nanotel_report <- function(processed_data, summary_stats, output_file, 
                     "  2. Proceed with mapping analysis using filtered data",
                     "  3. Check summary statistics for outliers",
                     "",
-                    "=" * 80
+                    rep_str("=", 80)
   )
 
   # Write report

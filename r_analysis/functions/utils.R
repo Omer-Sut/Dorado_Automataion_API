@@ -75,7 +75,7 @@ safe_write_csv <- function(data, file_path, ...) {
 }
 
 # Find files matching a pattern in a directory
-find_files_by_pattern <- function(directory, pattern, recursive = FALSE) {
+find_files_by_pattern <- function(directory, pattern, recursive = TRUE) {
   if (!dir.exists(directory)) {
     warning("Directory does not exist: ", directory)
     return(character(0))
@@ -86,16 +86,51 @@ find_files_by_pattern <- function(directory, pattern, recursive = FALSE) {
   return(files)
 }
 
-# Extract barcode number from filename or path
+# Enhanced barcode extraction
 extract_barcode_from_path <- function(file_path) {
-  # Extract barcode pattern (e.g., BC1, bc1, barcode01, barcode1, etc.)
+  # First try filename - look for barcode pattern with zero-padding
   barcode_match <- stringr::str_extract(basename(file_path),
-                                        "(?i)(bc|barcode)\\d+")
-  if (is.na(barcode_match)) {
-    warning("Could not extract barcode from: ", file_path)
-    return(NA)
+                                        "(?i)(bc|barcode)(\\d+)")
+
+  if (!is.na(barcode_match)) {
+    return(tolower(barcode_match))
   }
-  return(tolower(barcode_match))
+
+  # If filename doesn't have barcode, try parent directory
+  parent_dir <- basename(dirname(file_path))
+  barcode_match <- stringr::str_extract(parent_dir,
+                                        "(?i)(bc|barcode)(\\d+)")
+
+  if (!is.na(barcode_match)) {
+    return(tolower(barcode_match))
+  }
+
+  warning("Could not extract barcode from: ", file_path)
+  return(NA)
+}
+
+# Normalize barcode names to handle zero-padding differences
+normalize_barcode_name <- function(barcode) {
+  if (is.na(barcode)) return(NA)
+
+  # Extract the number part and prefix
+  if (grepl("^bc", barcode, ignore.case = TRUE)) {
+    prefix <- "bc"
+    number_part <- stringr::str_extract(barcode, "\\d+")
+  } else if (grepl("^barcode", barcode, ignore.case = TRUE)) {
+    prefix <- "barcode"
+    number_part <- stringr::str_extract(barcode, "\\d+")
+  } else {
+    return(tolower(barcode))
+  }
+
+  # Convert to integer to remove leading zeros, then back to string
+  if (!is.na(number_part)) {
+    normalized_number <- as.character(as.integer(number_part))
+    return(paste0(prefix, normalized_number))
+  }
+
+  return(tolower(barcode))
 }
 
 # System command wrapper with error handling
@@ -140,4 +175,9 @@ create_summary_stats <- function(data, group_col, value_col, stats_name = "value
       .groups = "drop"
     ) %>%
     setNames(c(group_col, paste0(stats_name, "_", c("count", "mean", "median", "sd", "min", "max"))))
+}
+
+# String repetition helper (R doesn't support "string" * number like Python)
+rep_str <- function(string, times) {
+  paste(rep(string, times), collapse = "")
 }

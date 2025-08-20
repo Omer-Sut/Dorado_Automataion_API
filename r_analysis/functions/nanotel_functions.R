@@ -105,12 +105,15 @@ batch_process_nanotel_files <- function(input_files,
       if (nrow(processed_data) > 0) {
         # Save individual filtered file
         barcode <- unique(processed_data$barcode)[1]
-        output_file <- file.path(output_dir, paste0("filtered_summary",
-                                                    toupper(gsub("bc", "BC", barcode)), ".csv"))
-        safe_write_csv(processed_data, output_file)
 
-        # Store for combined analysis
-        all_processed_data[[barcode]] <- processed_data
+        # CREATE BARCODE DIRECTORY (ADD THIS):
+        barcode_output_dir <- file.path(output_dir, barcode)
+        ensure_directory_exists(barcode_output_dir)
+
+        # UPDATED FILE PATH (CHANGE THIS):
+        output_file <- file.path(barcode_output_dir, paste0("filtered_summary",
+                                                            toupper(gsub("bc", "BC", barcode)), ".csv"))
+        safe_write_csv(processed_data, output_file)
       }
 
     }, error = function(e) {
@@ -144,6 +147,7 @@ generate_nanotel_summary_stats <- function(all_barcodes_data, output_file) {
       amount_of_telomeres = n(),
       median_telomere_length = round(median(Telomere_length_mismatch, na.rm = TRUE), 1),
       below_2kb_pct = round(100 * mean(Telomere_length_mismatch < 2000, na.rm = TRUE), 1),
+      # additional statistics, check if needed to drop!
       med_read_len = round(median(sequence_length, na.rm = TRUE), 1),
       mean_density = round(mean(telo_density_mismatch, na.rm = TRUE), 3),
       mean_telo_start = round(mean(Telomere_start_mismatch, na.rm = TRUE), 1),
@@ -164,10 +168,8 @@ generate_nanotel_summary_stats <- function(all_barcodes_data, output_file) {
 
 # Find all NanoTel summary files in a directory
 find_nanotel_summary_files <- function(input_dir) {
-
   log_message(paste("Looking for NanoTel summary files in:", input_dir))
 
-  # Look for various patterns of summary files
   patterns <- c(
     "summary.*\\.csv$",
     ".*summary.*\\.csv$",
@@ -180,9 +182,10 @@ find_nanotel_summary_files <- function(input_dir) {
     all_files <- c(all_files, files)
   }
 
-  # Remove duplicates and filter out already processed files
+  # Remove duplicates and filter out already processed files AND statistics files
   all_files <- unique(all_files)
   all_files <- all_files[!grepl("filtered_", basename(all_files))]
+  all_files <- all_files[!grepl("statistics", basename(all_files))]  # ADD THIS LINE
 
   if (length(all_files) == 0) {
     warning("No NanoTel summary files found in: ", input_dir)
