@@ -6,3 +6,7 @@ __pycache__/
 .env
 venv/
 .env/
+.Rhistory
+.RData
+.Rotoj.user/
+.Ruserdata
