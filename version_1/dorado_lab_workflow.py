@@ -66,7 +66,7 @@ class LabWorkflowConfig:
     methylation_head_max_pos: int = 5000
     methylation_tail_min_pos: int = 145000
     methylation_create_plots: bool = True
-    methylation_create_shiny_app: bool = False
+    methylation_create_shiny_app: bool = True
 
 
 class DoradoLabWorkflow:
@@ -115,11 +115,17 @@ class DoradoLabWorkflow:
         self.logger = logging.getLogger(__name__)
         self.logger.info(f"Lab workflow initialized for trial: {self.trial_name}")
     
-    def build_basecall_command(self, pod5_input: str) -> str:
+    def build_basecall_command(self, pod5_input: str, reference_choice: str = "mouse") -> str:
         """Build the basecalling command with your typical parameters"""
         timestamp = datetime.now().strftime('%Y-%m-%d_T%H-%M-%S')
         output_file = self.dirs['rebasecalled'] / f"calls_{timestamp}.bam"
-        
+
+        # Select reference based on choice
+        if reference_choice == "human":
+            reference_path = self.config.human_reference
+        else:
+            reference_path = self.config.mouse_reference
+
         cmd_parts = [
             "dorado", "basecaller",
             f"--min-qscore {int(self.config.min_qscore)}",
@@ -127,7 +133,7 @@ class DoradoLabWorkflow:
             f"--modified-bases {self.config.modified_bases}",
             "--no-trim" if self.config.no_trim else "",
             f"--kit-name {self.config.default_kit}",
-            f"--reference {self.config.mouse_reference}",
+            f"--reference {reference_path}",
             f"--output-dir {self.dirs['rebasecalled']}",
             self.config.default_model,
             f'"{pod5_input}"'
@@ -277,8 +283,7 @@ class DoradoLabWorkflow:
             post_config = LabConfig(
                 references={
                     "mouse": self.config.mouse_reference,
-                    "human": "/home/tzfati/Documents/Human/T2T-CHM13-150KchrHeadTail-Yincluded-telo-trimmed.fasta"
-                    # Add human reference
+                    "human": self.config.human_reference,
                 },
                 nanotel_script=self.config.nanotel_script,
                 default_kit=self.config.default_kit,
@@ -359,7 +364,7 @@ class DoradoLabWorkflow:
             "mapping_analysis": {
                 "alignment_summary_path": str(self.dirs['aligned'] / "alignment_summary.txt"),
                 "filtered_nanotel_dir": str(self.trial_dir / "nanotel_output"),
-                "bam_dir": str(self.dirs['demuxed']),
+                "bam_dir": str(self.dirs['aligned']),
                 "output_dir": str(self.trial_dir / "mapping_output"),
                 "min_mapq": self.config.mapping_min_mapq,
                 "head_max_start": self.config.mapping_head_max_start,
@@ -454,7 +459,304 @@ echo "Workflow completed for {self.trial_name}"
         self.logger.info(f"=== COMPLETE WORKFLOW FINISHED FOR {self.trial_name} ===")
         self.generate_workflow_summary()
         return True
-    
+
+    def _find_fastq_pass_directory(self, trial_dir: str) -> Path:
+        """
+        Smart finder for fastq_pass directory in MinKNOW output structure
+
+        MinKNOW structure:
+        T_XXX_XX/                          # Trial folder (what user provides)
+        └── 20250929_143025_MN12345/       # Random serial number folder
+            ├── fastq_pass/                # What we're looking for
+            ├── fastq_fail/
+            └── ...
+
+        Args:
+            trial_dir: Path to trial directory (e.g., T_XXX_XX)
+
+        Returns:
+            Path to fastq_pass directory
+
+        Raises:
+            FileNotFoundError if fastq_pass not found or ambiguous
+        """
+        trial_path = Path(trial_dir)
+
+        if not trial_path.exists():
+            raise FileNotFoundError(f"Trial directory not found: {trial_dir}")
+
+        # First, check if fastq_pass is directly in trial_dir
+        direct_fastq_pass = trial_path / "fastq_pass"
+        if direct_fastq_pass.exists() and direct_fastq_pass.is_dir():
+            self.logger.info(f"Found fastq_pass directly in: {trial_dir}")
+            return direct_fastq_pass
+
+        # If not, look for subdirectories that contain fastq_pass
+        subdirs = [d for d in trial_path.iterdir() if d.is_dir()]
+
+        if not subdirs:
+            raise FileNotFoundError(f"No subdirectories found in: {trial_dir}")
+
+        # Filter to only directories that contain fastq_pass
+        dirs_with_fastq_pass = []
+        for subdir in subdirs:
+            fastq_pass = subdir / "fastq_pass"
+            if fastq_pass.exists() and fastq_pass.is_dir():
+                dirs_with_fastq_pass.append(fastq_pass)
+
+        if not dirs_with_fastq_pass:
+            raise FileNotFoundError(
+                f"No fastq_pass directory found in {trial_dir} or its subdirectories. "
+                f"Checked: {trial_dir}/fastq_pass and subdirectories."
+            )
+
+        if len(dirs_with_fastq_pass) > 1:
+            # Multiple fastq_pass found - ambiguous
+            self.logger.error(f"Multiple fastq_pass directories found in {trial_dir}:")
+            for fp in dirs_with_fastq_pass:
+                self.logger.error(f"  - {fp}")
+            raise ValueError(
+                f"Ambiguous: Multiple fastq_pass directories found in {trial_dir}. "
+                f"Please specify the exact directory containing fastq_pass."
+            )
+
+        # Exactly one fastq_pass found
+        fastq_pass_path = dirs_with_fastq_pass[0]
+        self.logger.info(f"Found fastq_pass in: {fastq_pass_path.parent.name}/fastq_pass")
+        return fastq_pass_path
+
+    def _organize_fastq_files(self, source_dirs: list, copy_files: bool = False) -> bool:
+        """
+        Organize FASTQ files from MinKNOW output(s) into trial directory structure
+        Handles both .fastq and .fastq.gz files
+        Supports multiple input directories (for merging runs)
+
+        Args:
+            source_dirs: List of trial directories (will search for fastq_pass inside each)
+            copy_files: If True, copy files; if False (default), create symlinks to save space
+        """
+        self.logger.info("=== ORGANIZING FASTQ FILES ===")
+
+        # Find fastq_pass directories from all source trial directories
+        fastq_pass_dirs = []
+        for source_dir in source_dirs:
+            try:
+                fastq_pass = self._find_fastq_pass_directory(source_dir)
+                fastq_pass_dirs.append(fastq_pass)
+            except (FileNotFoundError, ValueError) as e:
+                self.logger.error(f"Error processing {source_dir}: {str(e)}")
+                return False
+
+        if not fastq_pass_dirs:
+            self.logger.error("No fastq_pass directories found in any source directory")
+            return False
+
+        self.logger.info(f"Processing {len(fastq_pass_dirs)} fastq_pass directories")
+
+        # Find all barcode directories across all fastq_pass directories
+        all_barcode_sources = {}  # barcode_name: [list of source directories]
+
+        for fastq_pass_dir in fastq_pass_dirs:
+            self.logger.info(f"Searching for barcodes in: {fastq_pass_dir}")
+
+            # Find barcode directories
+            barcode_dirs = [d for d in fastq_pass_dir.iterdir()
+                            if d.is_dir() and (d.name.startswith('barcode') or d.name.startswith('bc'))]
+
+            for barcode_dir in barcode_dirs:
+                # Normalize barcode name
+                barcode_name = barcode_dir.name.lower()
+                if barcode_name.startswith('bc') and not barcode_name.startswith('barcode'):
+                    barcode_num = barcode_name[2:]
+                    barcode_name = f"barcode{barcode_num}"
+
+                if barcode_name not in all_barcode_sources:
+                    all_barcode_sources[barcode_name] = []
+                all_barcode_sources[barcode_name].append(barcode_dir)
+
+        if not all_barcode_sources:
+            self.logger.error("No barcode directories found in any fastq_pass directory")
+            self.logger.info("Expected structure: trial_dir/*/fastq_pass/barcode01/")
+            return False
+
+        self.logger.info(f"Found {len(all_barcode_sources)} unique barcodes across all sources")
+
+        # Organize files for each barcode
+        total_files = 0
+        for barcode_name, source_dirs_for_barcode in all_barcode_sources.items():
+            target_dir = self.dirs['fastqs'] / barcode_name
+            target_dir.mkdir(parents=True, exist_ok=True)
+
+            barcode_file_count = 0
+
+            # Process each source directory for this barcode
+            for source_dir in source_dirs_for_barcode:
+                # Find all FASTQ files
+                fastq_files = list(source_dir.glob("*.fastq*"))
+
+                if not fastq_files:
+                    continue
+
+                # Copy or symlink each file
+                for fastq_file in fastq_files:
+                    target_file = target_dir / fastq_file.name
+
+                    # Skip if file already exists
+                    if target_file.exists():
+                        self.logger.debug(f"File already exists: {target_file.name}, skipping")
+                        continue
+
+                    try:
+                        if copy_files:
+                            # Copy the file
+                            import shutil
+                            shutil.copy2(fastq_file, target_file)
+                            self.logger.debug(f"Copied: {fastq_file.name}")
+                        else:
+                            # Create symlink (saves space)
+                            target_file.symlink_to(fastq_file.resolve())
+                            self.logger.debug(f"Linked: {fastq_file.name}")
+
+                        barcode_file_count += 1
+                        total_files += 1
+
+                    except (OSError, NotImplementedError) as e:
+                        # If symlink fails, fall back to copying
+                        if not copy_files:
+                            self.logger.warning(f"Symlink failed, copying instead: {fastq_file.name}")
+                            import shutil
+                            shutil.copy2(fastq_file, target_file)
+                            barcode_file_count += 1
+                            total_files += 1
+
+            self.logger.info(
+                f"✓ {barcode_name}: {barcode_file_count} files from {len(source_dirs_for_barcode)} source(s)")
+
+        method = "copied" if copy_files else "linked"
+        self.logger.info(f"✓ Total files {method}: {total_files}")
+        return True
+
+    def run_fastq_workflow(self, fastq_input_dirs, reference_choice: str = "mouse",
+                           skip_nanotel: bool = False, skip_r_analysis: bool = False,
+                           copy_files: bool = False) -> bool:
+        """
+        Complete workflow starting from FASTQ files (most common MinKNOW output case)
+
+        Args:
+            fastq_input_dirs: Directory (or list of directories) containing barcode subdirectories
+            reference_choice: 'mouse' or 'human'
+            skip_nanotel: Skip NanoTel analysis
+            skip_r_analysis: Skip R analysis pipeline
+            copy_files: If True, copy files; if False, use symlinks
+        """
+        self.logger.info(f"=== STARTING FASTQ WORKFLOW FOR {self.trial_name} ===")
+        self.logger.info(f"Reference genome: {reference_choice}")
+
+        # Handle single directory or list
+        if isinstance(fastq_input_dirs, str):
+            fastq_input_dirs = [fastq_input_dirs]
+
+        self.logger.info(f"Input trial directories: {len(fastq_input_dirs)}")
+        for d in fastq_input_dirs:
+            self.logger.info(f"  - {d}")
+
+        # Step 1: Organize FASTQ files
+        if not self._organize_fastq_files(fastq_input_dirs, copy_files):
+            return False
+
+        # Step 2: Run NanoTel
+        if not skip_nanotel:
+            if not self._run_nanotel_analysis():
+                return False
+        else:
+            self.logger.info("Skipping NanoTel analysis")
+
+        # Step 3: Run alignment
+        if not self._run_alignment_on_fastq(reference_choice):
+            return False
+
+        # Step 4: Run R analysis
+        if not skip_r_analysis:
+            if not self.run_r_analysis_pipeline(reference_choice):
+                return False
+        else:
+            self.logger.info("Skipping R analysis")
+
+        self.logger.info(f"=== FASTQ WORKFLOW COMPLETED FOR {self.trial_name} ===")
+        self.generate_workflow_summary()
+        return True
+
+    def _run_nanotel_analysis(self) -> bool:
+        """Run NanoTel analysis using existing post_processor function"""
+        self.logger.info("=== RUNNING NANOTEL ANALYSIS ===")
+
+        try:
+            from dorado_post_processing import DoradoPostProcessor, LabConfig
+
+            # Create config for post-processor
+            post_config = LabConfig(
+                references={
+                    "mouse": self.config.mouse_reference,
+                    "human": self.config.human_reference
+                },
+                nanotel_script=self.config.nanotel_script,
+                default_kit=self.config.default_kit,
+                telomere_pattern=self.config.telomere_pattern,
+                min_density=self.config.min_density,
+                fastq_subdir="fastqs",
+                nanotel_subdir="nanotel_output"
+            )
+
+            # Initialize post-processor
+            processor = DoradoPostProcessor(str(self.trial_dir), post_config)
+
+            # Use the simpler interface - just pass the fastq directory
+            processor.run_nanotel_analysis(fastq_dir=str(self.dirs['fastqs']), parallel=True)
+
+            self.logger.info("✓ NanoTel analysis completed")
+            return True
+
+        except Exception as e:
+            self.logger.error(f"NanoTel analysis failed: {str(e)}")
+            import traceback
+            self.logger.error(traceback.format_exc())
+            return False
+
+    def _run_alignment_on_fastq(self, reference_choice: str = "mouse") -> bool:
+        """Run Dorado alignment using existing post_processor function"""
+        self.logger.info("=== RUNNING ALIGNMENT ===")
+
+        try:
+            from dorado_post_processing import DoradoPostProcessor, LabConfig
+
+            # Create config for post-processor
+            post_config = LabConfig(
+                references={
+                    "mouse": self.config.mouse_reference,
+                    "human": self.config.human_reference
+                },
+                aligned_subdir="aligned"
+            )
+
+            # Initialize post-processor
+            processor = DoradoPostProcessor(str(self.trial_dir), post_config)
+
+            # Run alignment - the modified function auto-detects FASTQ input
+            processor.run_alignment(
+                str(self.dirs['fastqs']),
+                reference_choice=reference_choice,
+                input_type="fastq"
+            )
+
+            self.logger.info("✓ Alignment completed successfully")
+            return True
+
+        except Exception as e:
+            self.logger.error(f"Alignment failed: {str(e)}")
+            import traceback
+            self.logger.error(traceback.format_exc())
+            return False
+
     def generate_workflow_summary(self) -> None:
         """Generate a summary of the workflow results"""
         summary_lines = [
@@ -510,7 +812,6 @@ echo "Workflow completed for {self.trial_name}"
         # Print to console
         print('\n'.join(summary_lines))
         self.logger.info(f"Workflow summary saved: {summary_file}")
-
 
 def create_workflow_config(config_path: str = "workflow_config.json") -> None:
     """Create a workflow configuration template"""
@@ -577,6 +878,13 @@ Examples:
     parser.add_argument('--skip-r-analysis', action='store_true', help='Skip R analysis pipeline')
     parser.add_argument('--only-r-analysis', action='store_true', help='Only run R analysis')
     parser.add_argument('--r-config', type=str, help='Additional R analysis configuration')
+    parser.add_argument('--from-fastq', type=str, nargs='+', metavar='FASTQ_DIR',
+                        help='Start workflow from FASTQ files (MinKNOW output). '
+                             'Can specify single directory or multiple directories to merge. '
+                             'Each directory should contain barcode subdirectories with .fastq/.fastq.gz files')
+
+    parser.add_argument('--copy-files', action='store_true',
+                        help='Copy FASTQ files instead of creating symlinks (uses more disk space)')
 
     args = parser.parse_args()
     
@@ -584,14 +892,14 @@ Examples:
     if args.create_config:
         create_workflow_config()
         return
-    
+
     # Validate required arguments
     if not args.trial_name:
         parser.error("trial_name is required (unless using --create-config)")
 
-    if not args.only_post_process and not args.only_align and not args.only_r_analysis and not args.pod5_input:
-        parser.error("pod5_input is required unless using --only-post-process, --only-align, or --only-r-analysis")
-    
+    if not args.only_post_process and not args.only_align and not args.only_r_analysis and not args.from_fastq and not args.pod5_input:
+        parser.error(
+            "pod5_input is required unless using --only-post-process, --only-align, --only-r-analysis, or --from-fastq")
     # Load configuration
     if args.config and os.path.exists(args.config):
         with open(args.config, 'r') as f:
@@ -644,6 +952,20 @@ Examples:
                 print("\nR analysis completed")
             else:
                 print("\nR analysis failed")
+                sys.exit(1)
+
+        elif args.from_fastq:
+            # Workflow starting from FASTQ files (common MinKNOW case)
+            if workflow.run_fastq_workflow(
+                    args.from_fastq,  # Can be single string or list
+                    reference_choice=args.reference,
+                    skip_nanotel=args.skip_nanotel,
+                    skip_r_analysis=args.skip_r_analysis,
+                    copy_files=args.copy_files
+            ):
+                print(f"\n✓ FASTQ workflow completed for {args.trial_name}!")
+            else:
+                print(f"\n✗ FASTQ workflow failed for {args.trial_name}")
                 sys.exit(1)
 
         else:

@@ -240,38 +240,85 @@ class DoradoPostProcessor:
                 self.logger.info(f"✓ {task['barcode']}: {task['bam_file'].name} -> {task['output_fastq'].name}")
             except Exception as e:
                 self.logger.error(f"✗ {task['barcode']}: Failed to convert {task['bam_file'].name} - {str(e)}")
-    
-    def run_nanotel_analysis(self, output_dirs: Dict, parallel: bool = True) -> None:
-        """Run NanoTel telomere analysis on all barcodes"""
+
+    def run_nanotel_analysis(self, output_dirs: Dict = None, fastq_dir: str = None,
+                             parallel: bool = True) -> None:
+        """
+        Run NanoTel telomere analysis on all barcodes
+
+        Args:
+            output_dirs: Dict structure {barcode: {'fastq': path, 'nanotel': path}}
+                         (for backward compatibility with existing code)
+            fastq_dir: Alternative: path to directory containing barcode subdirs
+                       (simpler interface for new FASTQ workflow)
+            parallel: Run in parallel if True
+        """
         if not os.path.exists(self.config.nanotel_script):
             self.logger.warning("NanoTel script not found, skipping telomere analysis")
             return
-        
+
         self.logger.info("Starting NanoTel telomere analysis...")
-        
+
+        # Handle both calling conventions
+        if output_dirs is None and fastq_dir is not None:
+            output_dirs = self._create_output_dirs_from_fastq(fastq_dir)
+        elif output_dirs is None:
+            raise ValueError("Must provide either output_dirs or fastq_dir")
+
         nanotel_tasks = []
         for barcode, dirs in output_dirs.items():
-            fastq_dir = dirs['fastq']
+            fastq_path = dirs['fastq']
             nanotel_output = dirs['nanotel']
-            
+
             # Check if FASTQ files exist
-            fastq_files = list(fastq_dir.glob("*.fastq"))
+            fastq_files = list(Path(fastq_path).glob("*.fastq*"))
             if not fastq_files:
                 self.logger.warning(f"No FASTQ files found for {barcode}, skipping NanoTel")
                 continue
-            
+
             nanotel_tasks.append({
                 'barcode': barcode,
-                'input_dir': fastq_dir,
+                'input_dir': fastq_path,
                 'output_dir': nanotel_output
             })
-        
+
         if parallel:
             self._run_nanotel_parallel(nanotel_tasks)
         else:
             self._run_nanotel_sequential(nanotel_tasks)
-        
+
         self.logger.info("NanoTel analysis completed")
+
+    def _create_output_dirs_from_fastq(self, fastq_dir: str) -> Dict:
+        """
+        Create output_dirs structure from a fastq directory containing barcode subdirs
+
+        Args:
+            fastq_dir: Directory containing barcode01/, barcode02/, etc.
+
+        Returns:
+            Dict structure compatible with run_nanotel_analysis
+        """
+        fastq_path = Path(fastq_dir)
+        nanotel_base = self.base_dir / self.config.nanotel_subdir
+
+        output_dirs = {}
+
+        # Find barcode directories
+        barcode_dirs = sorted([d for d in fastq_path.iterdir()
+                               if d.is_dir() and d.name.startswith('barcode')])
+
+        for barcode_dir in barcode_dirs:
+            barcode_name = barcode_dir.name
+            nanotel_output = nanotel_base / barcode_name
+            nanotel_output.mkdir(parents=True, exist_ok=True)
+
+            output_dirs[barcode_name] = {
+                'fastq': barcode_dir,
+                'nanotel': nanotel_output
+            }
+
+        return output_dirs
     
     def _run_nanotel_parallel(self, tasks: List[Dict]) -> None:
         """Run NanoTel analysis in parallel"""
@@ -317,32 +364,78 @@ class DoradoPostProcessor:
                 self.logger.info(f"✓ NanoTel completed for {task['barcode']}")
             except Exception as e:
                 self.logger.error(f"✗ NanoTel failed for {task['barcode']}: {str(e)}")
-    
-    def run_alignment(self, demuxed_dir: str, reference_choice: str = "mouse") -> None:
-        """Run alignment on demuxed data"""
+
+    def run_alignment(self, input_dir: str, reference_choice: str = "mouse",
+                      input_type: str = "auto") -> None:
+        """
+        Run alignment on demuxed data
+
+        Args:
+            input_dir: Directory containing BAM or FASTQ files (organized by barcode)
+            reference_choice: 'mouse' or 'human'
+            input_type: 'bam', 'fastq', or 'auto' (auto-detect)
+        """
         self.logger.info("Starting alignment...")
-        
+
         aligned_dir = self.base_dir / self.config.aligned_subdir
         aligned_dir.mkdir(exist_ok=True)
 
+        # Select reference
         if reference_choice == "human":
             reference_path = self.config.references["human"]
         else:
             reference_path = self.config.references["mouse"]
+
+        # Auto-detect input type if needed
+        if input_type == "auto":
+            input_type = self._detect_input_type(input_dir)
+            self.logger.info(f"Auto-detected input type: {input_type}")
+
+        self.logger.info(f"Running alignment with {input_type.upper()} input")
+
+        # Build alignment command
         command = (
             f"dorado aligner -r "
             f"--output-dir {aligned_dir} "
             f"--emit-summary "
             f"{reference_path} "
-            f"{demuxed_dir}"
+            f"{input_dir}"
         )
-        
+
         try:
             self.run_command(command)
             self.logger.info("✓ Alignment completed successfully")
         except Exception as e:
             self.logger.error(f"✗ Alignment failed: {str(e)}")
-    
+            raise
+
+    def _detect_input_type(self, input_dir: str) -> str:
+        """
+        Auto-detect if input directory contains BAM or FASTQ files
+
+        Args:
+            input_dir: Directory to check
+
+        Returns:
+            'bam' or 'fastq'
+        """
+        input_path = Path(input_dir)
+
+        # Look for files recursively (in case of barcode subdirectories)
+        bam_files = list(input_path.rglob("*.bam"))
+        fastq_files = list(input_path.rglob("*.fastq*"))
+
+        if bam_files and not fastq_files:
+            return "bam"
+        elif fastq_files and not bam_files:
+            return "fastq"
+        elif bam_files and fastq_files:
+            # Both exist - prefer BAM (already processed)
+            self.logger.warning("Both BAM and FASTQ files found, using BAM files")
+            return "bam"
+        else:
+            raise ValueError(f"No BAM or FASTQ files found in {input_dir}")
+
     def generate_summary_report(self, output_dirs: Dict) -> str:
         """Generate a summary report of the processing results"""
         report_lines = [
@@ -588,12 +681,21 @@ Examples:
             barcodes = processor.find_demuxed_barcodes(args.demuxed_dir)
             output_dirs = processor.create_output_structure(barcodes)
             processor.convert_bam_to_fastq(args.demuxed_dir, output_dirs, not args.no_parallel)
-            
+
         elif args.only_nanotel:
             # Only NanoTel analysis
-            barcodes = processor.find_demuxed_barcodes(args.demuxed_dir)
-            output_dirs = processor.create_output_structure(barcodes)
-            processor.run_nanotel_analysis(output_dirs, not args.no_parallel)
+            # Check if demuxed_dir is a fastq_pass directory (MinKNOW output)
+            demuxed_path = Path(args.demuxed_dir)
+            is_minknow_output = demuxed_path.name == 'fastq_pass'
+
+            if is_minknow_output:
+                # Direct MinKNOW output - use existing structure
+                processor.run_nanotel_analysis(fastq_dir=args.demuxed_dir, parallel=not args.no_parallel)
+            else:
+                # Already processed/organized structure - create output dirs
+                barcodes = processor.find_demuxed_barcodes(args.demuxed_dir)
+                output_dirs = processor.create_output_structure(barcodes)
+                processor.run_nanotel_analysis(output_dirs, parallel=not args.no_parallel)
             
         elif args.only_alignment:
             # Only alignment
