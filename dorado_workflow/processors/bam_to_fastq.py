@@ -13,7 +13,7 @@ import os
 import shlex
 import subprocess
 
-from processors.base import ProcessorBase, ProcessorResult, WorkflowContext
+from .base import ProcessorBase, ProcessorResult, WorkflowContext
 
 
 class BamToFastqProcessor(ProcessorBase):

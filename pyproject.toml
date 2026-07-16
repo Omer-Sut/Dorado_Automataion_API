@@ -1,0 +1,72 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+# PACKAGING TODO [PACKAGE-NAME] - RELEASE BLOCKER
+# Missing: The final public distribution name selected by the team.
+# Needed for: Python package publication, the Bioconda recipe, and user install commands.
+# Replace: Change this temporary value everywhere listed in packaging/README.md.
+name = "package-name-pending"
+
+# PACKAGING TODO [VERSION] - RELEASE BLOCKER
+# Missing: Agreement on the authoritative version and release process.
+# Needed for: Matching Git tags, source archives, Python packages, and Bioconda releases.
+# Replace: Use the agreed release version; 0.0.0 must never be published.
+version = "0.0.0"
+
+description = "Draft packaging skeleton for the telomere analysis workflow"
+readme = "README.md"
+requires-python = ">=3.10"
+
+# Dependency audit result:
+# - The workflow backend uses only the Python standard library.
+# - The combined CLI/GUI distribution directly imports PySide6.
+# - PySide6 installs its Essentials, Addons, and shiboken6 dependencies itself, so those
+#   transitive packages are intentionally not repeated here.
+dependencies = [
+    "PySide6>=6.10,<7",
+]
+
+# PACKAGING TODO [LICENSE] - RELEASE BLOCKER
+# Missing: The SPDX identifier for the project license selected by the team.
+# Needed for: Python package metadata and Bioconda submission.
+# Replace: Add the approved LICENSE file, then add a valid `license` field here.
+
+# PACKAGING TODO [AUTHORS]
+# Missing: The names and optional email addresses that should appear as package authors.
+# Needed for: Clear project attribution in published package metadata.
+# Replace: Add an `authors = [...]` array after the team confirms attribution.
+
+# PACKAGING TODO [MAINTAINERS]
+# Missing: The people responsible for packaging and release updates.
+# Needed for: Release ownership and future package maintenance.
+# Replace: Add a `maintainers = [...]` array after responsibilities are assigned.
+
+# PACKAGING TODO [PROJECT-URLS]
+# Missing: Final repository, documentation, issue tracker, and publication URLs.
+# Needed for: Package metadata and user support links.
+# Replace: Add a `[project.urls]` table when the public locations are confirmed.
+
+[project.scripts]
+# PACKAGING TODO [ENTRY-POINTS]
+# `telomere-analyzer` is an approved temporary CLI command and may change with the final package name.
+# The GUI command remains unresolved until dorado_gui.main exposes an install-safe main() function.
+telomere-analyzer = "dorado_workflow.main:main"
+
+[tool.setuptools]
+# This first skeleton intentionally contains Python source only. Non-Python resources are
+# excluded until their ownership, licenses, installed paths, and package size are reviewed.
+include-package-data = false
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["dorado_workflow*", "dorado_gui*"]
+namespaces = true
+
+# PACKAGING TODO [PACKAGE-DATA] - RELEASE BLOCKER
+# Missing: The approved list of configuration files, R scripts, icons, references, models,
+# and test data that should be installed with the Python package.
+# Needed for: Making installed workflows locate the same resources as the source checkout.
+# Replace: Add `[tool.setuptools.package-data]` only after the resource audit is complete.
+# Do not add the Dorado executable or model without explicit redistribution approval.

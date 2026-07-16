@@ -7,18 +7,18 @@ Command-line interface for the Dorado workflow system.
 
 Usage:
     # POD5 workflow (complete pipeline)
-    python main.py pod5 Trial_75 /path/to/pod5 --organism mouse
+    telomere-analyzer pod5 Trial_75 /path/to/pod5 --organism mouse
 
     # FASTQ workflow (from MinKNOW output)
-    python main.py fastq Trial_75 /path/to/fastq --organism mouse
+    telomere-analyzer fastq Trial_75 /path/to/fastq --organism mouse
 
     # Single process execution
-    python main.py nanotel Trial_75 /path/to/fastq
-    python main.py align Trial_75 /path/to/fastq --organism mouse
-    python main.py r-analysis Trial_75 --filtration --mapping --methylation
+    telomere-analyzer nanotel Trial_75 /path/to/fastq
+    telomere-analyzer align Trial_75 /path/to/fastq --organism mouse
+    telomere-analyzer r-analysis Trial_75 --filtration --mapping --methylation
 
     # Show version
-    python main.py --version
+    telomere-analyzer --version
 """
 
 import sys
@@ -26,14 +26,17 @@ import argparse
 from pathlib import Path
 from typing import Optional, Callable
 
-# Import workflow components
-from operators.workflow_operator import WorkflowOperator
-from processors.base import WorkflowContext
-from managers.config_manager import ConfigManager
-from managers.path_manager import PathManager
-from managers.barcode_manager import BarcodeManager
-from utils.logger import WorkflowLogger
-from utils.command_executor import CommandExecutor
+# Preserve direct source execution while also supporting installed package entry points.
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from dorado_workflow.managers.barcode_manager import BarcodeManager
+from dorado_workflow.managers.config_manager import ConfigManager
+from dorado_workflow.managers.path_manager import PathManager
+from dorado_workflow.operators.workflow_operator import WorkflowOperator
+from dorado_workflow.processors.base import WorkflowContext
+from dorado_workflow.utils.command_executor import CommandExecutor
+from dorado_workflow.utils.logger import WorkflowLogger
 
 
 def setup_context(
@@ -160,21 +163,21 @@ def main():
         epilog="""
 Examples:
   # Complete POD5 workflow
-  python main.py pod5 Trial_75 /data/pod5_files --organism mouse
+  telomere-analyzer pod5 Trial_75 /data/pod5_files --organism mouse
 
   # FASTQ workflow (from MinKNOW)
-  python main.py fastq Trial_75 /data/fastq_pass --organism human
+  telomere-analyzer fastq Trial_75 /data/fastq_pass --organism human
 
   # Single processes
-  python main.py nanotel Trial_75 /data/fastqs
-  python main.py align Trial_75 /data/fastqs --organism mouse
+  telomere-analyzer nanotel Trial_75 /data/fastqs
+  telomere-analyzer align Trial_75 /data/fastqs --organism mouse
 
   # R analysis - all three by default
-  python main.py r-analysis Trial_75
+  telomere-analyzer r-analysis Trial_75
 
   # R analysis - selective (use --no-* flags to skip)
-  python main.py r-analysis Trial_75 --no-mapping --no-methylation  # filtration only
-  python main.py r-analysis Trial_75 --no-filtration                 # mapping & methylation only
+  telomere-analyzer r-analysis Trial_75 --no-mapping --no-methylation  # filtration only
+  telomere-analyzer r-analysis Trial_75 --no-filtration                 # mapping & methylation only
         """
     )
 
@@ -188,7 +191,7 @@ Examples:
     # POD5 workflow
     parser_pod5 = subparsers.add_parser(
         'pod5',
-        help='Run complete POD5 workflow (basecall → demux → nanotel → align → R analysis)'
+        help='Run complete POD5 workflow (basecall -> demux -> nanotel -> align -> R analysis)'
     )
     parser_pod5.add_argument('trial_name', help='Trial name (e.g., Trial_75)')
     parser_pod5.add_argument('input', help='Path to POD5 input (file or directory)')
@@ -199,7 +202,7 @@ Examples:
     # FASTQ workflow
     parser_fastq = subparsers.add_parser(
         'fastq',
-        help='Run FASTQ workflow (nanotel → align → R filtration)'
+        help='Run FASTQ workflow (nanotel -> align -> R filtration)'
     )
     parser_fastq.add_argument('trial_name', help='Trial name (e.g., Trial_75)')
     parser_fastq.add_argument('input', help='Path to FASTQ directory')

@@ -1,0 +1,103 @@
+{% set name = "package-name-pending" %}
+{% set version = "0.0.0" %}
+
+# PACKAGING TODO [PACKAGE-NAME] - RELEASE BLOCKER
+# Missing: The final public distribution name. This temporary name must not be submitted.
+# Replace: Update `name` above and rename the recipe directory in bioconda-recipes.
+
+# PACKAGING TODO [VERSION] - RELEASE BLOCKER
+# Missing: The first release version matching an upstream Git tag.
+# Replace: Update `version` above after the release process is agreed.
+
+package:
+  name: {{ name|lower }}
+  version: {{ version }}
+
+# PACKAGING TODO [SOURCE-URL] - RELEASE BLOCKER
+# Missing: The permanent URL for the tagged GitHub source archive.
+# Needed for: Allowing Bioconda to download a reproducible copy of the source.
+# Replace: Add a `source` section with `url` after the first release is tagged.
+
+# PACKAGING TODO [SOURCE-SHA256] - RELEASE BLOCKER
+# Missing: The SHA256 checksum of the exact source archive specified above.
+# Needed for: Detecting changed or corrupted release downloads.
+# Replace: Add `sha256` to the `source` section; never use a placeholder checksum.
+
+build:
+  number: 0
+  noarch: python
+
+requirements:
+  host:
+    - python >=3.10
+    - pip
+    - setuptools >=68
+    - wheel
+  run:
+    - python >=3.10
+    - pyside6 >=6.10,<7
+    - minimap2
+    - samtools
+    - r-base
+    - r-dplyr
+    - r-readr
+    - r-tidyr
+    - r-purrr
+    - r-stringr
+    - r-ggplot2
+    - r-plotly
+    - r-shiny
+    - r-htmlwidgets
+    - r-rcolorbrewer
+    - r-gridextra
+    - r-fuzzyjoin
+    - r-readxl
+    - r-jsonlite
+
+    # Dependency audit result:
+    # - The Python backend uses only the standard library.
+    # - The GUI directly imports PySide6; its lower-level Qt/shiboken packages are transitive.
+    # - The r-* packages above are loaded by the core scripts under dorado_workflow/r_analysis.
+    # Package versions remain unpinned until the clean-environment compatibility test is added.
+
+    # PACKAGING TODO [NANOTEL-DEPENDENCIES] - RELEASE BLOCKER IF NANOTEL SHIPS
+    # Missing: Confirmation that NanoTel.R will be redistributed and supported by this package.
+    # Needed for: Deciding whether its additional dependency set belongs in the final recipe.
+    # Candidate packages found by source audit: r-optparse, bioconductor-biocgenerics,
+    # bioconductor-s4vectors, bioconductor-iranges, bioconductor-biostrings, r-conflicted,
+    # r-tidyverse, r-logr, r-future, r-ggprism, r-testit, and r-survival.
+    # Replace: Add the verified Conda package names here if NanoTel.R is approved for packaging.
+
+    # PACKAGING TODO [MODKIT]
+    # Missing: Decision whether modkit support is required, optional, or unsupported.
+    # Replace: Add it as a dependency only if the supported workflow requires it.
+
+    # Dorado is intentionally not listed as a Conda dependency in this draft.
+    # PACKAGING TODO [DORADO] - RELEASE BLOCKER
+    # Missing: Supported Dorado versions, installation instructions, and redistribution decision.
+    # Current assumption: Users install Dorado and its model separately; the application detects it.
+
+test:
+  commands:
+    # PACKAGING TODO [BIOCONDA-TESTS] - RELEASE BLOCKER
+    # Missing: GUI entry-point and approved installed-resource tests.
+    # The provisional CLI smoke tests are now active; add resource tests when package data ships.
+    - telomere-analyzer --help
+    - telomere-analyzer --version
+
+about:
+  summary: "Draft packaging skeleton for the telomere analysis workflow"
+
+  # PACKAGING TODO [PROJECT-URLS] - RELEASE BLOCKER
+  # Missing: Stable public repository and documentation URLs.
+  # Replace: Add `home`, `dev_url`, and `doc_url` when confirmed.
+
+  # PACKAGING TODO [LICENSE] - RELEASE BLOCKER
+  # Missing: Approved project license, SPDX identifier, and root license file.
+  # Replace: Add `license` and `license_file` after the team's decision.
+
+extra:
+  # PACKAGING TODO [MAINTAINERS] - RELEASE BLOCKER
+  # Missing: GitHub usernames of people who will maintain the Bioconda recipe.
+  # Replace: Add a `recipe-maintainers` list before submission.
+  recipe-maintainers: []

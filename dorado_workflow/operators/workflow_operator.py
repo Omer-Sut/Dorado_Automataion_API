@@ -8,13 +8,13 @@ Handles three main execution scenarios and manages the pipeline flow.
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 
-from processors.base import WorkflowContext, ProcessorResult
-from processors.basecaller import BasecallerProcessor
-from processors.demuxer import DemuxProcessor
-from processors.nanotel import NanoTelProcessor
-from processors.aligner import AlignmentProcessor
-from processors.r_analyzer import RAnalyzer
-from processors.bam_to_fastq import BamToFastqProcessor
+from ..processors.aligner import AlignmentProcessor
+from ..processors.bam_to_fastq import BamToFastqProcessor
+from ..processors.base import WorkflowContext, ProcessorResult
+from ..processors.basecaller import BasecallerProcessor
+from ..processors.demuxer import DemuxProcessor
+from ..processors.nanotel import NanoTelProcessor
+from ..processors.r_analyzer import RAnalyzer
 
 
 class WorkflowOperator:
