@@ -13,6 +13,7 @@ dist/
 .Rproj.user/
 
 test/
+tests/integration_output/
 
 dorado_workflow/data/references/ZebraFish/
 dorado_workflow/r_analysis/.Rproj.user/

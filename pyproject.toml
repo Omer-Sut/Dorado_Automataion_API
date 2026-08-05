@@ -55,8 +55,8 @@ dependencies = [
 telomere-analyzer = "dorado_workflow.main:main"
 
 [tool.setuptools]
-# This first skeleton intentionally contains Python source only. Non-Python resources are
-# excluded until their ownership, licenses, installed paths, and package size are reviewed.
+# Non-Python resources are included only through the explicit package-data allowlist below.
+# Git-tracked files that do not match these patterns must not enter the installed wheel.
 include-package-data = false
 
 [tool.setuptools.packages.find]
@@ -64,9 +64,33 @@ where = ["."]
 include = ["dorado_workflow*", "dorado_gui*"]
 namespaces = true
 
-# PACKAGING TODO [PACKAGE-DATA] - RELEASE BLOCKER
-# Missing: The approved list of configuration files, R scripts, icons, references, models,
-# and test data that should be installed with the Python package.
-# Needed for: Making installed workflows locate the same resources as the source checkout.
-# Replace: Add `[tool.setuptools.package-data]` only after the resource audit is complete.
-# Do not add the Dorado executable or model without explicit redistribution approval.
+[tool.setuptools.package-data]
+dorado_workflow = [
+    "configs/default_config.json",
+    "data/NanoTel.R",
+    "r_analysis/main_analysis_pipeline.R",
+    "r_analysis/batch_mapping_analysis.R",
+    "r_analysis/batch_methylation_prep.R",
+    "r_analysis/batch_nanotel_analysis.R",
+    "r_analysis/functions/mapping_functions.R",
+    "r_analysis/functions/methylation_functions.R",
+    "r_analysis/functions/nanotel_functions.R",
+    "r_analysis/functions/utils.R",
+]
+dorado_gui = [
+    "icons/bam.png",
+    "icons/basecalling.png",
+    "icons/checked.png",
+    "icons/fastq.png",
+    "icons/folder.png",
+    "icons/nanotel.png",
+    "icons/pod5.png",
+    "icons/sub_basecalling.png",
+    "icons/sub_nanotel.png",
+]
+
+# PACKAGING TODO [PACKAGE-DATA] - RELEASE BLOCKER FOR REFERENCES
+# Approved runtime config, NanoTel, R-analysis scripts, and GUI icons are included above.
+# Human reference is conditional on provenance completion.
+# Excluded: survival-analysis .rds, Dorado executable/model, and full zebrafish genome.
+# Awaiting provenance: mouse chromosome-end reference. See packaging/RESOURCE_INVENTORY.md.

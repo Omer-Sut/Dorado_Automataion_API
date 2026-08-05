@@ -308,6 +308,10 @@ class AlignmentProcessor(ProcessorBase):
                     ]) + "\n")
                 stderr = process.stderr.read() if process.stderr else ""
                 returncode = process.wait()
+                if process.stdout:
+                    process.stdout.close()
+                if process.stderr:
+                    process.stderr.close()
                 if returncode:
                     raise subprocess.CalledProcessError(
                         returncode,

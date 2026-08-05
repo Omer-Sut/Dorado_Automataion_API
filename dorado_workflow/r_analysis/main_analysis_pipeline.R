@@ -9,7 +9,8 @@ script_dir <- tryCatch({
   args <- commandArgs(trailingOnly = FALSE)
   file_arg <- grep("^--file=", args, value = TRUE)
   if (length(file_arg) > 0) {
-    return(dirname(sub("^--file=", "", file_arg)))
+    script_file <- sub("^--file=", "", file_arg[[1]])
+    return(dirname(gsub("~+~", " ", script_file, fixed = TRUE)))
   }
 
   # Fallback: when sourced in an IDE

@@ -398,6 +398,8 @@ class RAnalyzer(ProcessorBase):
         finally:
             if process.stdout:
                 process.stdout.close()
+            if process.stderr:
+                process.stderr.close()
             process.terminate()
             process.wait(timeout=5)
 

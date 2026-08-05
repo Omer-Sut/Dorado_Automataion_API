@@ -23,26 +23,28 @@ resolved before creating a public release or submitting a recipe to Bioconda.
 | `MAINTAINERS` | Waiting for team | Release and Bioconda maintainers | `pyproject.toml`, `meta.yaml` |
 | `PROJECT-URLS` | Waiting for public locations | Repository, documentation, issues, and publication links | `pyproject.toml`, `meta.yaml` |
 | `PYTHON-DEPENDENCIES` | Initial audit complete | Python 3.10+ and direct `PySide6` dependency recorded; retest after entry-point work | `pyproject.toml`, `meta.yaml` |
-| `R-DEPENDENCIES` | Core audit complete | Core R-analysis dependencies recorded; retest when R resources are packaged | `meta.yaml`, README dependency documentation |
-| `NANOTEL-DEPENDENCIES` | Waiting for NanoTel decision | Additional CRAN and Bioconductor dependencies used by `NanoTel.R` | `meta.yaml`, README dependency documentation |
+| `R-DEPENDENCIES` | Source audit in progress | NanoTel is classified; active and possibly unused `r_analysis` dependencies are recorded for team classification | `R_DEPENDENCIES.md`, `meta.yaml` |
+| `NANOTEL-DEPENDENCIES` | Clean-environment test passed | Direct dependencies and the approved summary/filtration baseline passed in an isolated Linux environment | `R_DEPENDENCIES.md`, `meta.yaml` |
 | `ENTRY-POINTS` | CLI placeholder complete | `telomere-analyzer` is temporary; GUI command and final names remain unresolved | GUI entry module, `pyproject.toml`, recipe tests |
-| `PACKAGE-DATA` | Audit required | Approved non-Python resources to install | `pyproject.toml`, installed-resource path code |
+| `PACKAGE-DATA` | Approved core resources included | Config, NanoTel, runtime R scripts, and icons are packaged; references remain partly unresolved | `RESOURCE_INVENTORY.md`, `pyproject.toml`, installed-resource tests |
 | `SOURCE-URL` | Requires release | URL of the final tagged source archive | `meta.yaml` |
 | `SOURCE-SHA256` | Requires release | SHA256 of that exact source archive | `meta.yaml` |
-| `BIOCONDA-TESTS` | Code/test work required | Fast tests of installed commands and resources | `meta.yaml` or a future `run_test.sh` |
+| `BIOCONDA-TESTS` | Local integration passed | Real FASTQ/BAM tests passed with recipe dependencies; built-package CI and GUI coverage remain | `tests/test_real_integration.py`, `meta.yaml` |
 | `DORADO` | Team/license decision | Supported Dorado versions and external installation instructions | README and runtime dependency checks |
 | `DORADO-MODEL` | Redistribution decision | Whether ONT model files may ship; default is external | Package-data settings and user documentation |
-| `REFERENCES` | Provenance review | Source and redistribution terms for every FASTA | Package-data settings and third-party notices |
-| `NANOTEL` | Provenance review | Ownership and redistribution terms for `NanoTel.R` | Package-data settings and third-party notices |
-| `RDS-MODEL` | Provenance review | Ownership, creation details, and redistribution permission | Package-data settings and documentation |
+| `EXTERNAL-RESOURCE-CONFIG` | Code/design work required | Shared per-user settings, GUI selectors, precedence, validation, and cross-platform tests | `RESOURCE_INVENTORY.md`, config manager, GUI settings |
+| `REFERENCES` | Partial decision | Human is CC0 pending derivation details; mouse awaits provenance; zebrafish is preferred to ship but temporarily excluded pending source/license and file review | `RESOURCE_INVENTORY.md`, package-data settings, notices |
+| `NANOTEL` | Approved and integration-tested | Lab-owned, packaged, and verified against the approved real-data regression baseline | `RESOURCE_INVENTORY.md`, `R_DEPENDENCIES.md`, recipe |
+| `RDS-MODEL` | Excluded | Awaiting a decision on deployment of the NanoTel statistical analysis | `RESOURCE_INVENTORY.md`, NanoTel runtime behavior |
 | `MODKIT` | Technical decision | Whether it is required, optional, or unsupported | `meta.yaml`, README, runtime dependency checks |
 | `WINDOWS` | Support decision | Native executable, WSL2, best effort, or unsupported | User documentation and separate release process |
 
 ## Current package boundary
 
-The first skeleton packages Python source only. It intentionally excludes R scripts, JSON
-configuration, icons, references, trained models, executables, test data, development artifacts,
-and generated output. Exclusion at this stage does not mean those files can never be included.
+The current skeleton packages Python source plus the approved default configuration, NanoTel script,
+runtime R-analysis scripts, and GUI icons. References, trained models, executables, test data,
+development artifacts, and generated output remain excluded unless the resource inventory approves
+them explicitly.
 
 Confirmed Conda runtime dependencies currently recorded in the draft recipe are `minimap2`,
 `samtools`, `pyside6`, `r-base`, and the packages loaded by the core R-analysis scripts. Dorado is
@@ -51,6 +53,11 @@ documented as external while its distribution status is unresolved.
 The root `requirements.txt` is a snapshot of the development environment and includes transitive or
 development tools that the application does not import directly. `pyproject.toml` is the authoritative
 list of direct Python runtime dependencies for the distributable package.
+
+Detailed decisions, provenance, sizes, and checksums for non-Python files are maintained in
+[`RESOURCE_INVENTORY.md`](RESOURCE_INVENTORY.md).
+NanoTel and `r_analysis` dependency classifications and remaining execution tests are maintained in
+[`R_DEPENDENCIES.md`](R_DEPENDENCIES.md).
 
 ## Publication gate
 

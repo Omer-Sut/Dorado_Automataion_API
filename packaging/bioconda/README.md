@@ -27,6 +27,12 @@ useful for team review but must be kept synchronized deliberately if retained.
 
 ## Resource policy for this draft
 
-The Python package currently excludes non-Python resources. Before adding configuration, R scripts,
-icons, references, or trained models, record their provenance and licenses and test their paths after
-installation. Do not add the Dorado executable or the 315 MB ONT model without explicit permission.
+The Python package includes the approved configuration, NanoTel script, runtime R scripts, and GUI
+icons. Their installed paths are covered by package and recipe tests. References and trained models
+remain excluded until their inventory blockers are resolved. Do not add the Dorado executable or the
+315 MB ONT model without explicit permission. Current decisions and checksums are tracked in
+`../RESOURCE_INVENTORY.md`.
+
+Sanitized real-data fixtures are copied into the Bioconda test environment through `test.source_files`
+and are not installed in the Python wheel or source distribution. The lab authorized public
+redistribution on 2026-08-05 after sample/run identifiers were replaced with anonymous test labels.

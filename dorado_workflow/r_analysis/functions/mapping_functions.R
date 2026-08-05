@@ -7,7 +7,8 @@ script_dir <- tryCatch({
   args <- commandArgs(trailingOnly = FALSE)
   file_arg <- grep("^--file=", args, value = TRUE)
   if (length(file_arg) > 0) {
-    dirname(sub("^--file=", "", file_arg))
+    script_file <- sub("^--file=", "", file_arg[[1]])
+    dirname(gsub("~+~", " ", script_file, fixed = TRUE))
   } else {
     # Try sys.frame for when sourced
     frame_files <- lapply(sys.frames(), function(x) x$ofile)
