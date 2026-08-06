@@ -50,9 +50,9 @@ dependencies = [
 
 [project.scripts]
 # PACKAGING TODO [ENTRY-POINTS]
-# `telomere-analyzer` is an approved temporary CLI command and may change with the final package name.
-# The GUI command remains unresolved until dorado_gui.main exposes an install-safe main() function.
-telomere-analyzer = "dorado_workflow.main:main"
+# `telomere-analyzer` is an approved temporary GUI command and may change with the final package name.
+# Backend workflow subcommands remain internal and are not exposed as the supported user interface.
+telomere-analyzer = "dorado_gui.main:main"
 
 [tool.setuptools]
 # Non-Python resources are included only through the explicit package-data allowlist below.

@@ -38,6 +38,7 @@ requirements:
     - pyside6 >=6.10,<7
     - minimap2
     - samtools
+    - ont-modkit
     - r-base
     - r-optparse
     - bioconductor-biocgenerics
@@ -81,14 +82,15 @@ requirements:
     # environment. It still needs execution against the actual conda-build package before submission.
     # See packaging/R_DEPENDENCIES.md for the classification and test plan.
 
-    # PACKAGING TODO [MODKIT]
-    # Missing: Decision whether modkit support is required, optional, or unsupported.
-    # Replace: Add it as a dependency only if the supported workflow requires it.
+    # Modkit is installed from its existing Bioconda package because the GUI's pending
+    # methylation workflow can invoke the `modkit` command. The current integration
+    # fixture has no MM/ML tags, so a real pileup result still needs separate coverage.
 
     # Dorado is intentionally not listed as a Conda dependency in this draft.
     # PACKAGING TODO [DORADO] - RELEASE BLOCKER
-    # Missing: Supported Dorado versions, installation instructions, and redistribution decision.
-    # Current assumption: Users install Dorado and its model separately; the application detects it.
+    # The SUP v5.2.0 model is pinned and both Dorado and its model remain external.
+    # Missing: Record the exact tested Dorado executable version and installation instructions.
+    # See packaging/DORADO_COMPATIBILITY.md for the public workflow and compatibility policy.
 
 test:
   source_files:
@@ -102,7 +104,8 @@ test:
   commands:
     # PACKAGING TODO [BIOCONDA-TESTS] - RELEASE BLOCKER
     # The real NanoTel/R test passed against the source checkout with the recipe dependencies.
-    # Missing: GUI entry-point coverage and execution against the actual conda-build package.
+    # The wheel-installed GUI launcher passed help/version and offscreen startup smoke tests.
+    # Missing: Repeat all installed-package checks against the actual conda-build package.
     - telomere-analyzer --help
     - telomere-analyzer --version
     - python -c "from pathlib import Path; from dorado_workflow.managers.config_manager import ConfigManager; c = ConfigManager(); assert Path(c.config_path).is_file(); assert Path(c.get_nanotel_script_path()).is_file()"

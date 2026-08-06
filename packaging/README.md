@@ -25,19 +25,19 @@ resolved before creating a public release or submitting a recipe to Bioconda.
 | `PYTHON-DEPENDENCIES` | Initial audit complete | Python 3.10+ and direct `PySide6` dependency recorded; retest after entry-point work | `pyproject.toml`, `meta.yaml` |
 | `R-DEPENDENCIES` | Source audit in progress | NanoTel is classified; active and possibly unused `r_analysis` dependencies are recorded for team classification | `R_DEPENDENCIES.md`, `meta.yaml` |
 | `NANOTEL-DEPENDENCIES` | Clean-environment test passed | Direct dependencies and the approved summary/filtration baseline passed in an isolated Linux environment | `R_DEPENDENCIES.md`, `meta.yaml` |
-| `ENTRY-POINTS` | CLI placeholder complete | `telomere-analyzer` is temporary; GUI command and final names remain unresolved | GUI entry module, `pyproject.toml`, recipe tests |
+| `ENTRY-POINTS` | GUI launcher implemented | `telomere-analyzer` launches the installed GUI and exposes only help/version; final command name remains unresolved | `dorado_gui/main.py`, `pyproject.toml`, recipe tests |
 | `PACKAGE-DATA` | Approved core resources included | Config, NanoTel, runtime R scripts, and icons are packaged; references remain partly unresolved | `RESOURCE_INVENTORY.md`, `pyproject.toml`, installed-resource tests |
 | `SOURCE-URL` | Requires release | URL of the final tagged source archive | `meta.yaml` |
 | `SOURCE-SHA256` | Requires release | SHA256 of that exact source archive | `meta.yaml` |
-| `BIOCONDA-TESTS` | Local integration passed | Real FASTQ/BAM tests passed with recipe dependencies; built-package CI and GUI coverage remain | `tests/test_real_integration.py`, `meta.yaml` |
-| `DORADO` | Team/license decision | Supported Dorado versions and external installation instructions | README and runtime dependency checks |
-| `DORADO-MODEL` | Redistribution decision | Whether ONT model files may ship; default is external | Package-data settings and user documentation |
+| `BIOCONDA-TESTS` | Local integration and wheel GUI smoke passed | Real FASTQ/BAM tests passed with recipe dependencies; actual conda-build package CI remains | GUI/resource/integration tests, `meta.yaml` |
+| `DORADO` | External; compatibility audit in progress | SUP v5.2.0 model is pinned; record the tested Dorado executable version and kit policy | `DORADO_COMPATIBILITY.md`, runtime checks |
+| `DORADO-MODEL` | External and pinned | Users obtain `dna_r10.4.1_e8.2_400bps_sup@v5.2.0` separately | `DORADO_COMPATIBILITY.md`, user documentation |
 | `EXTERNAL-RESOURCE-CONFIG` | Code/design work required | Shared per-user settings, GUI selectors, precedence, validation, and cross-platform tests | `RESOURCE_INVENTORY.md`, config manager, GUI settings |
 | `REFERENCES` | Partial decision | Human is CC0 pending derivation details; mouse awaits provenance; zebrafish is preferred to ship but temporarily excluded pending source/license and file review | `RESOURCE_INVENTORY.md`, package-data settings, notices |
 | `NANOTEL` | Approved and integration-tested | Lab-owned, packaged, and verified against the approved real-data regression baseline | `RESOURCE_INVENTORY.md`, `R_DEPENDENCIES.md`, recipe |
 | `RDS-MODEL` | Excluded | Awaiting a decision on deployment of the NanoTel statistical analysis | `RESOURCE_INVENTORY.md`, NanoTel runtime behavior |
-| `MODKIT` | Technical decision | Whether it is required, optional, or unsupported | `meta.yaml`, README, runtime dependency checks |
-| `WINDOWS` | Support decision | Native executable, WSL2, best effort, or unsupported | User documentation and separate release process |
+| `MODKIT` | Approved Conda dependency | Install Bioconda's `ont-modkit`; methylation pileup still needs a tagged-BAM integration test | `meta.yaml`, integration tests |
+| `WINDOWS` | Deferred separate distribution | Bioconda is the primary release; a native Windows executable will be packaged and validated later through a separate process | User documentation and future Windows release work |
 
 ## Current package boundary
 
@@ -47,8 +47,9 @@ development artifacts, and generated output remain excluded unless the resource 
 them explicitly.
 
 Confirmed Conda runtime dependencies currently recorded in the draft recipe are `minimap2`,
-`samtools`, `pyside6`, `r-base`, and the packages loaded by the core R-analysis scripts. Dorado is
-documented as external while its distribution status is unresolved.
+`samtools`, `ont-modkit`, `pyside6`, `r-base`, and the packages loaded by the core R-analysis
+scripts. Dorado and its pinned SUP v5.2.0 model are external; the tested executable version and
+installation instructions remain unresolved.
 
 The root `requirements.txt` is a snapshot of the development environment and includes transitive or
 development tools that the application does not import directly. `pyproject.toml` is the authoritative

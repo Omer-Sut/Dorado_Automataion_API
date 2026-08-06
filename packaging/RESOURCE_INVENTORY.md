@@ -16,7 +16,7 @@ Status values:
 
 | Resource | Status | Reason and remaining work |
 | --- | --- | --- |
-| Python workflow and GUI source | `SHIP` | Package-safe CLI imports are implemented; the GUI entry point is still pending. |
+| Python workflow and GUI source | `SHIP` | The installed `telomere-analyzer` command launches the GUI; backend-only workflow subcommands are not exposed as the public entry point. |
 | `dorado_workflow/data/NanoTel.R` | `SHIP` | Created and owned by the lab; included as package data and passed the approved real-data regression baseline in an isolated Linux environment. |
 | Core scripts under `dorado_workflow/r_analysis/` | `SHIP` | Lab-owned integral analysis code; the eight runtime scripts are included and their installed paths are tested. |
 | `dorado_workflow/configs/default_config.json` | `SHIP` | Included as read-only defaults. The GUI supplies input, output, organism, and run settings at runtime; external reference/model overrides still need a supported mechanism. |
@@ -25,11 +25,12 @@ Status values:
 | Mouse chromosome-end FASTA and index | `AWAITING DECISION` | Exact upstream assembly, URL, terms, and transformation procedure are unknown. |
 | Zebrafish GRCz12tu reference FASTA | `AWAITING DECISION` | Preferred outcome is to ship it like the human and mouse references. It is temporarily excluded because the local file is absent and its exact source/redistribution record still needs confirmation. External download is a fallback only. |
 | `dorado_workflow/data/models/poly_regression_model.rds` | `EXCLUDE` | Survival-analysis calibration is not deployable pending a statistical-analysis decision. |
-| Dorado executable | `EXTERNAL` | Users install a supported Dorado version separately. |
-| Dorado neural-network model | `EXTERNAL` | Approximately 315 MB and subject to ONT redistribution terms. |
-| minimap2, samtools, Python, R, and language libraries | `CONDA DEPENDENCY` | Declare these in the Bioconda recipe rather than copying their files into this repository. |
+| Dorado executable | `EXTERNAL` | Users install the lab-tested Dorado version separately; its exact executable version still needs to be recorded in `DORADO_COMPATIBILITY.md`. |
+| Dorado neural-network model | `EXTERNAL` | The initial package is pinned to `dna_r10.4.1_e8.2_400bps_sup@v5.2.0`; approximately 315 MB and subject to ONT redistribution terms. |
+| minimap2, samtools, Modkit, Python, R, and language libraries | `CONDA DEPENDENCY` | Declare these in the Bioconda recipe rather than copying their files into this repository. Modkit is supplied by the approved `ont-modkit` dependency while public methylation modes await a decision. |
 | User POD5, BAM, FASTQ, and result files | `EXCLUDE` | User data and generated output are never distribution resources. |
 | Sanitized integration FASTQ/BAM fixtures | `SHIP IN SOURCE TESTS ONLY` | Sample/run identifiers use anonymous test labels; lab authorization for public redistribution was recorded on 2026-08-05. Excluded from wheel and sdist, but supplied to Bioconda tests from the tagged source checkout. |
+| Windows executable and installer artifacts | `EXCLUDE` | Native Windows distribution is deferred to a separately built and validated executable; it is not part of the Bioconda recipe or Python package archives. |
 
 ## How Installed Paths Work
 

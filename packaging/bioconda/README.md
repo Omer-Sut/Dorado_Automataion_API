@@ -8,8 +8,10 @@ incomplete and cannot be submitted while `PACKAGING TODO` release blockers remai
 - `meta.yaml` describes the package source, dependencies, tests, license, and maintainers.
 - `build.sh` installs the upstream Python package into the Conda build environment.
 
-The recipe does not compile minimap2 or samtools. Bioconda installs their existing Conda packages as
-runtime dependencies. Dorado and its neural-network model remain external in this draft.
+The recipe does not compile minimap2, samtools, or Modkit. Bioconda installs their existing Conda
+packages (`minimap2`, `samtools`, and `ont-modkit`) as runtime dependencies. Dorado and its
+SUP v5.2.0 neural-network model remain external in this draft. Their tested compatibility and the
+three supported GUI workflows are tracked in `../DORADO_COMPATIBILITY.md`.
 
 ## Relationship to Bioconda
 
@@ -24,6 +26,9 @@ package is release-ready:
 
 After acceptance, the published recipe in `bioconda-recipes` is authoritative. This local copy remains
 useful for team review but must be kept synchronized deliberately if retained.
+
+Bioconda is the primary supported distribution route. Native Windows support is deferred and will
+use a separately built and tested executable rather than being treated as part of this recipe.
 
 ## Resource policy for this draft
 
