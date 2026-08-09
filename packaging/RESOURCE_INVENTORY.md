@@ -20,7 +20,7 @@ Status values:
 | `dorado_workflow/data/NanoTel.R` | `SHIP` | Created and owned by the lab; included as package data and passed the approved real-data regression baseline in an isolated Linux environment. |
 | Core scripts under `dorado_workflow/r_analysis/` | `SHIP` | Lab-owned integral analysis code; the eight runtime scripts are included and their installed paths are tested. |
 | `dorado_workflow/configs/default_config.json` | `SHIP` | Included as read-only defaults. The GUI supplies input, output, organism, and run settings at runtime; external reference/model overrides still need a supported mechanism. |
-| GUI icons | `SHIP` | All nine PNG assets are included and their installed paths are tested; actual GUI startup remains a separate task. |
+| GUI icons | `SHIP` | All nine PNG assets are included; installed discovery and offscreen startup of the real Conda-installed GUI passed. |
 | Human chromosome-end FASTA | `SHIP` after completing provenance | Upstream T2T data is CC0; record the exact source file and transformation procedure. |
 | Mouse chromosome-end FASTA and index | `AWAITING DECISION` | Exact upstream assembly, URL, terms, and transformation procedure are unknown. |
 | Zebrafish GRCz12tu reference FASTA | `AWAITING DECISION` | Preferred outcome is to ship it like the human and mouse references. It is temporarily excluded because the local file is absent and its exact source/redistribution record still needs confirmation. External download is a fallback only. |
@@ -29,7 +29,7 @@ Status values:
 | Dorado neural-network model | `EXTERNAL` | The initial package is pinned to `dna_r10.4.1_e8.2_400bps_sup@v5.2.0`; approximately 315 MB and subject to ONT redistribution terms. |
 | minimap2, samtools, Modkit, Python, R, and language libraries | `CONDA DEPENDENCY` | Declare these in the Bioconda recipe rather than copying their files into this repository. Modkit is supplied by the approved `ont-modkit` dependency while public methylation modes await a decision. |
 | User POD5, BAM, FASTQ, and result files | `EXCLUDE` | User data and generated output are never distribution resources. |
-| Sanitized integration FASTQ/BAM fixtures | `SHIP IN SOURCE TESTS ONLY` | Sample/run identifiers use anonymous test labels; lab authorization for public redistribution was recorded on 2026-08-05. Excluded from wheel and sdist, but supplied to Bioconda tests from the tagged source checkout. |
+| Sanitized integration FASTQ/BAM fixtures | `CONDA TEST METADATA` | Sample/run identifiers use anonymous test labels; lab authorization for public redistribution was recorded on 2026-08-05. Excluded from wheel, sdist, and the installed runtime, but conda-build stores `test.source_files` under the downloadable artifact's `info/test` metadata. |
 | Windows executable and installer artifacts | `EXCLUDE` | Native Windows distribution is deferred to a separately built and validated executable; it is not part of the Bioconda recipe or Python package archives. |
 
 ## How Installed Paths Work
@@ -120,10 +120,11 @@ This inventory records the decision and provenance, but it does not install file
 - Size: 111,618 bytes
 - SHA256: `4EAA18CB4F5B3BD84E0166D8E0BA75E11A47BE2F6E7E2186DFD3317F603D1027`
 - Packaged path: resolved through `ConfigManager.get_nanotel_script_path()`
-- Verification: the implemented sanitized FASTQ smoke test passed against the accepted
-  CRAN/Bioconductor dependency set in an isolated Linux Micromamba environment on 2026-08-05.
-- Remaining work: repeat it against the package produced by conda-build and add the optional
-  scenarios listed in `R_DEPENDENCIES.md`.
+- Verification: the sanitized FASTQ smoke test passed against the accepted CRAN/Bioconductor
+  dependency set in an isolated Linux Micromamba environment on 2026-08-05 and against the built
+  Conda package on 2026-08-06.
+- Remaining work: add the optional scenarios listed in `R_DEPENDENCIES.md` when approved fixtures
+  become available.
 
 ## Deferred Survival Model
 

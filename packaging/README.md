@@ -23,13 +23,13 @@ resolved before creating a public release or submitting a recipe to Bioconda.
 | `MAINTAINERS` | Waiting for team | Release and Bioconda maintainers | `pyproject.toml`, `meta.yaml` |
 | `PROJECT-URLS` | Waiting for public locations | Repository, documentation, issues, and publication links | `pyproject.toml`, `meta.yaml` |
 | `PYTHON-DEPENDENCIES` | Initial audit complete | Python 3.10+ and direct `PySide6` dependency recorded; retest after entry-point work | `pyproject.toml`, `meta.yaml` |
-| `R-DEPENDENCIES` | Source audit in progress | NanoTel is classified; active and possibly unused `r_analysis` dependencies are recorded for team classification | `R_DEPENDENCIES.md`, `meta.yaml` |
-| `NANOTEL-DEPENDENCIES` | Clean-environment test passed | Direct dependencies and the approved summary/filtration baseline passed in an isolated Linux environment | `R_DEPENDENCIES.md`, `meta.yaml` |
+| `R-DEPENDENCIES` | Declared and package-tested | NanoTel and `r_analysis` dependencies are recorded; missing packages now produce an actionable error instead of a runtime download | `R_DEPENDENCIES.md`, `meta.yaml` |
+| `NANOTEL-DEPENDENCIES` | Conda package test passed | Direct dependencies and the approved summary/filtration baseline passed from the built package | `R_DEPENDENCIES.md`, `BIOCONDA_BUILD_REHEARSAL.md`, `meta.yaml` |
 | `ENTRY-POINTS` | GUI launcher implemented | `telomere-analyzer` launches the installed GUI and exposes only help/version; final command name remains unresolved | `dorado_gui/main.py`, `pyproject.toml`, recipe tests |
 | `PACKAGE-DATA` | Approved core resources included | Config, NanoTel, runtime R scripts, and icons are packaged; references remain partly unresolved | `RESOURCE_INVENTORY.md`, `pyproject.toml`, installed-resource tests |
 | `SOURCE-URL` | Requires release | URL of the final tagged source archive | `meta.yaml` |
 | `SOURCE-SHA256` | Requires release | SHA256 of that exact source archive | `meta.yaml` |
-| `BIOCONDA-TESTS` | Local integration and wheel GUI smoke passed | Real FASTQ/BAM tests passed with recipe dependencies; actual conda-build package CI remains | GUI/resource/integration tests, `meta.yaml` |
+| `BIOCONDA-TESTS` | Local conda-build passed | Build, clean install, GUI smoke, resources, tools, R namespaces, and real FASTQ/BAM tests passed; official Bioconda CI remains | `BIOCONDA_BUILD_REHEARSAL.md`, `meta.yaml` |
 | `DORADO` | External; compatibility audit in progress | SUP v5.2.0 model is pinned; record the tested Dorado executable version and kit policy | `DORADO_COMPATIBILITY.md`, runtime checks |
 | `DORADO-MODEL` | External and pinned | Users obtain `dna_r10.4.1_e8.2_400bps_sup@v5.2.0` separately | `DORADO_COMPATIBILITY.md`, user documentation |
 | `EXTERNAL-RESOURCE-CONFIG` | Code/design work required | Shared per-user settings, GUI selectors, precedence, validation, and cross-platform tests | `RESOURCE_INVENTORY.md`, config manager, GUI settings |
@@ -59,6 +59,8 @@ Detailed decisions, provenance, sizes, and checksums for non-Python files are ma
 [`RESOURCE_INVENTORY.md`](RESOURCE_INVENTORY.md).
 NanoTel and `r_analysis` dependency classifications and remaining execution tests are maintained in
 [`R_DEPENDENCIES.md`](R_DEPENDENCIES.md).
+The successful local Conda build and installed-package evidence are recorded in
+[`BIOCONDA_BUILD_REHEARSAL.md`](BIOCONDA_BUILD_REHEARSAL.md).
 
 ## Publication gate
 

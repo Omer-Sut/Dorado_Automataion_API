@@ -7,7 +7,8 @@ test labels. Replacing metadata and identifiers does not change the retained gen
 The FASTQ and BAM are from unrelated runs and test different workflow stages. They must not be
 compared with each other or treated as a matched sample:
 
-- `fastq/barcode19/test_reads_barcode19.fastq.gz` tests NanoTel and NanoTel filtration.
+- `fastq/barcode19/test_reads_barcode19.fastq.gz` tests NanoTel summary mode, active `--analysis`
+  outputs, and NanoTel filtration.
 - `bam/barcode07/test_aligned_barcode07.bam` tests an already-aligned BAM, alignment-summary
   generation, mapping, and BAM filtering. Its `.bai` is regenerated during preparation.
 
@@ -19,6 +20,11 @@ alignment tags. See `manifest.json` for checksums and the exact policy.
 These files do not test basecalling, demultiplexing, or remapping. The BAM has no `MM` or `ML`
 modified-base tags, so it tests graceful handling of unavailable methylation data rather than
 methylation calculations.
+
+The NanoTel `--analysis` check is structural: the fixture produces five raw summary rows and one
+post-filtration row, which is enough to exercise CSV, results-text, and plot generation but not to
+support a scientific estimate. KM metrics and the excluded calibration `.rds` remain in progress and
+are explicitly outside this test.
 
 Regenerate the fixtures in an environment containing Python and samtools:
 

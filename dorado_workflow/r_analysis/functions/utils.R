@@ -9,9 +9,12 @@ load_required_packages <- function() {
 
   missing_packages <- required_packages[!(required_packages %in% installed.packages()[,"Package"])]
 
-  if(length(missing_packages) > 0) {
-    cat("Installing missing packages:", paste(missing_packages, collapse = ", "), "\n")
-    install.packages(missing_packages, repos = "https://cran.r-project.org")
+  if (length(missing_packages) > 0) {
+    stop(
+      "Missing required R packages: ",
+      paste(missing_packages, collapse = ", "),
+      ". Reinstall or update the Conda environment."
+    )
   }
 
   # Load all packages

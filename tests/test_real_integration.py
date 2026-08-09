@@ -118,18 +118,19 @@ class RealDataIntegrationTests(unittest.TestCase):
             "--save_path",
             nanotel_output,
             "--summary_only",
+            "--analysis",
             "--patterns",
             nanotel_parameters["patterns"],
         ])
 
-        summary_files = list(nanotel_output.glob("*_summary.csv"))
+        summary_file = nanotel_output / "barcode19_summary.csv"
         read_id_files = list(nanotel_output.glob("*_reads_ids.txt"))
         log_files = list(nanotel_output.rglob("*.log"))
-        self.assertTrue(summary_files, "NanoTel did not create a summary CSV")
+        self.assertTrue(summary_file.is_file(), "NanoTel did not create its raw summary CSV")
         self.assertTrue(read_id_files, "NanoTel did not create a read-ID file")
         self.assertTrue(log_files, "NanoTel did not create a log")
 
-        rows = read_csv_rows(summary_files[0])
+        rows = read_csv_rows(summary_file)
         self.assertTrue(rows, "NanoTel summary is empty")
         self.assertTrue(EXPECTED_SUMMARY_COLUMNS.issubset(rows[0]))
         observed_ids = {row["sequence_ID"].split()[0] for row in rows}
@@ -139,6 +140,38 @@ class RealDataIntegrationTests(unittest.TestCase):
             self.assertRegex(row["sequence_ID"].split()[0], r"^fastq_test_read_\d{6}$")
             for column in EXPECTED_SUMMARY_COLUMNS - {"sequence_ID"}:
                 self.assertGreaterEqual(float(row[column]), 0)
+
+        analysis_expected = expected_fastq["analysis"]
+        analysis_summary = nanotel_output / "barcode19_filtered_sorted_summary.csv"
+        analysis_results = nanotel_output / "barcode19_results.txt"
+        analysis_plot = nanotel_output / "barcode19_telomere_plot.png"
+
+        self.assertTrue(analysis_summary.is_file(), "NanoTel analysis summary is missing")
+        analysis_rows = read_csv_rows(analysis_summary)
+        self.assertEqual(len(analysis_rows), analysis_expected["filtered_records"])
+        self.assertEqual(
+            analysis_rows[0]["sequence_ID"].split()[0],
+            analysis_expected["filtered_read_id"],
+        )
+        for column in ("TelLenMM_RunningMed", "SeqLen_minus_RunMed"):
+            self.assertIn(column, analysis_rows[0])
+            self.assertTrue(float(analysis_rows[0][column]) >= 0)
+
+        self.assertTrue(analysis_results.is_file(), "NanoTel analysis results are missing")
+        results_text = analysis_results.read_text(encoding="utf-8")
+        self.assertIn(
+            "Number of telomeric reads (post-filtration) : "
+            f"{analysis_expected['filtered_records']}",
+            results_text,
+        )
+        self.assertIn("Median Telomeric Length (post-filtration)", results_text)
+        if not analysis_expected["km_metrics_enabled"]:
+            self.assertNotIn("KM Median", results_text)
+            self.assertNotIn("Expected KM Median Bias", results_text)
+
+        self.assertTrue(analysis_plot.is_file(), "NanoTel analysis plot is missing")
+        self.assertGreater(analysis_plot.stat().st_size, 1024)
+        self.assertEqual(analysis_plot.read_bytes()[:8], b"\x89PNG\r\n\x1a\n")
 
         filtered_output = self.work / "nanotel_filtered"
         config_path = self.work / "nanotel_filter_config.json"

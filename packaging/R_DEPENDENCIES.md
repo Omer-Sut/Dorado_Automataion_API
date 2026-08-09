@@ -88,30 +88,36 @@ application files but does not launch a Shiny server automatically.
 Do not remove these packages from the recipe or `utils.R` until the team reviews the processes and
 representative R-analysis inputs exercise the relevant workflow paths.
 
-### Runtime Installation Concern
+### Runtime Dependency Policy
 
-`functions/utils.R` currently calls `install.packages()` when a listed package is missing. A released
-Conda package should normally use only dependencies installed by Conda and should not modify its R
-library or require internet access while the workflow is running. This behavior needs a separate,
-reviewed code decision after the dependency list is confirmed.
+`functions/utils.R` does not download packages while the workflow is running. If a declared R
+dependency is missing, it stops with a message listing the missing packages and instructing the user
+to repair the Conda environment. This keeps dependency versions under Conda's control and allows the
+workflow to run without internet access. A packaged-resource test protects this policy.
 
-## PACKAGING TODO: Complete Representative Execution Tests
+## Representative Execution Test Status
 
-Sanitized team-supplied FASTQ and BAM fixtures and a gated integration test now cover normal NanoTel
-`--summary_only`, NanoTel filtration, aligned-BAM summary generation, mapping, BAM filtering, and
-the absence of methylation tags. On 2026-08-05, all three tests passed in an isolated Linux
-Micromamba environment containing the dependency set declared by the draft recipe. Approved
-scientific regression values are recorded in `tests/fixtures/integration/expected_results.json`.
+Sanitized team-supplied FASTQ and BAM fixtures and a gated integration test now cover NanoTel
+`--summary_only`, active `--analysis` output generation, NanoTel filtration, aligned-BAM summary
+generation, mapping, BAM filtering, and the absence of methylation tags. On 2026-08-05, the original
+three tests passed in an isolated Linux
+Micromamba environment containing the dependency set declared by the draft recipe. On 2026-08-06,
+they passed both conda-build's installed-package tests and an independent clean installation of the
+built package. Approved scientific regression values are recorded in
+`tests/fixtures/integration/expected_results.json`; build details are in
+`BIOCONDA_BUILD_REHEARSAL.md`. On 2026-08-09, the extended suite including the new `--analysis`
+assertions passed in 73 seconds in a fresh Linux environment containing the recipe's declared R
+dependencies. The next package build will repeat these assertions against the installed package.
 
-The remaining release validation is to run the same test against the package produced by the actual
-Bioconda/conda-build recipe rather than directly against the source checkout.
+The analysis assertion is a structural smoke test based on five detected reads and one final row. It
+does not validate a scientific estimate. KM metrics and the excluded calibration `.rds` remain in
+progress and are explicitly outside the test.
 
 Additional test coverage is still needed for:
 
-1. NanoTel processing with `--summary_only --analysis`.
-2. Reverse complement, filtering, and TVR patterns when the
+1. Reverse complement, filtering, and TVR patterns when the
    supplied fixtures support those paths.
-3. A BAM containing approved modified-base tags for actual methylation analysis.
+2. A BAM containing approved modified-base tags for actual methylation analysis.
 
 Verify successful exit, expected summary/read-ID outputs, expected `--analysis` outputs, and absence
 of missing-function or missing-package failures. The clean test environment must omit the direct

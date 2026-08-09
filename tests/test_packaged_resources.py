@@ -55,6 +55,15 @@ class PackagedResourceTests(unittest.TestCase):
         self.assertTrue(EXPECTED_R_SCRIPTS.issubset(scripts))
         self.assertTrue(EXPECTED_R_FUNCTIONS.issubset(functions))
 
+    def test_r_dependency_loader_does_not_install_at_runtime(self):
+        utils_source = (
+            self.workflow_root / "r_analysis" / "functions" / "utils.R"
+        ).read_text(encoding="utf-8")
+
+        self.assertNotIn("install.packages(", utils_source)
+        self.assertIn("Missing required R packages:", utils_source)
+        self.assertIn("Reinstall or update the Conda environment.", utils_source)
+
     def test_gui_icons_are_available(self):
         icons = {path.name for path in (self.gui_root / "icons").glob("*.png")}
 

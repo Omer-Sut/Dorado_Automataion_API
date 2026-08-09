@@ -38,6 +38,9 @@ remain excluded until their inventory blockers are resolved. Do not add the Dora
 315 MB ONT model without explicit permission. Current decisions and checksums are tracked in
 `../RESOURCE_INVENTORY.md`.
 
-Sanitized real-data fixtures are copied into the Bioconda test environment through `test.source_files`
-and are not installed in the Python wheel or source distribution. The lab authorized public
-redistribution on 2026-08-05 after sample/run identifiers were replaced with anonymous test labels.
+Sanitized real-data fixtures are copied into the Bioconda test environment through
+`test.source_files`. They are not installed in the Python wheel, source distribution, or runtime
+environment. Conda-build does preserve them under the downloadable Conda artifact's `info/test`
+metadata, where they contributed approximately 18.7 MB in the local rehearsal. The lab authorized
+public redistribution on 2026-08-05 after sample/run identifiers were replaced with anonymous test
+labels. See `../BIOCONDA_BUILD_REHEARSAL.md` for the complete local build record.

@@ -70,16 +70,14 @@ requirements:
     # - The Python backend uses only the standard library.
     # - The GUI directly imports PySide6; its lower-level Qt/shiboken packages are transitive.
     # - Core R-analysis and NanoTel direct dependencies are listed explicitly above.
-    # The dependency set passed the real-data tests in an isolated Linux environment on 2026-08-05.
-    # Supported version ranges remain unpinned until the built-package compatibility test is run.
+    # The dependency set passed the real-data tests in an isolated Linux environment on 2026-08-05
+    # and from the actual locally built Conda package on 2026-08-06.
 
-    # PACKAGING TODO [NANOTEL-DEPENDENCIES] - RELEASE BLOCKER
     # The source-audited direct dependencies are active above. The base-R parallel package does
     # not need a separate Conda entry, and tibble is transitive through dplyr/readr.
     # Intentionally not direct dependencies: r-tidyverse, r-forcats, and r-lubridate.
     # r-tidyr remains required by the separate core R-analysis scripts.
-    # The representative NanoTel/mapping test below passed in an isolated Linux dependency
-    # environment. It still needs execution against the actual conda-build package before submission.
+    # The representative NanoTel/mapping test below passed against the built package.
     # See packaging/R_DEPENDENCIES.md for the classification and test plan.
 
     # Modkit is installed from its existing Bioconda package because the GUI's pending
@@ -93,6 +91,8 @@ requirements:
     # See packaging/DORADO_COMPATIBILITY.md for the public workflow and compatibility policy.
 
 test:
+  # conda-build stores source_files in the artifact's info/test metadata for future retesting.
+  # They are not installed into the runtime environment.
   source_files:
     - tests/test_real_integration.py
     - tests/fixtures/integration/README.md
@@ -102,12 +102,11 @@ test:
     - tests/fixtures/integration/bam/barcode07/test_aligned_barcode07.bam
     - tests/fixtures/integration/bam/barcode07/test_aligned_barcode07.bam.bai
   commands:
-    # PACKAGING TODO [BIOCONDA-TESTS] - RELEASE BLOCKER
-    # The real NanoTel/R test passed against the source checkout with the recipe dependencies.
-    # The wheel-installed GUI launcher passed help/version and offscreen startup smoke tests.
-    # Missing: Repeat all installed-package checks against the actual conda-build package.
+    # All commands below passed against the locally built Conda package on 2026-08-06.
+    # Official Bioconda CI must repeat them after the release metadata is complete.
     - telomere-analyzer --help
     - telomere-analyzer --version
+    - QT_QPA_PLATFORM=offscreen python -c "from PySide6.QtCore import QTimer; from PySide6.QtWidgets import QApplication; from dorado_gui.main import AppWindow; app = QApplication([]); window = AppWindow(); window.show(); QTimer.singleShot(250, app.quit); assert app.exec() == 0"
     - python -c "from pathlib import Path; from dorado_workflow.managers.config_manager import ConfigManager; c = ConfigManager(); assert Path(c.config_path).is_file(); assert Path(c.get_nanotel_script_path()).is_file()"
     - python -c "from pathlib import Path; import dorado_workflow; p = Path(dorado_workflow.__file__).parent / 'r_analysis'; assert (p / 'main_analysis_pipeline.R').is_file(); assert len(list((p / 'functions').glob('*.R'))) == 4"
     - python -c "from importlib.util import find_spec; from pathlib import Path; p = Path(next(iter(find_spec('dorado_gui').submodule_search_locations))) / 'icons'; assert len(list(p.glob('*.png'))) == 9"
