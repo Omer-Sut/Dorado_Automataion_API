@@ -522,6 +522,11 @@ class NanoTelProcessor(ProcessorBase):
             'summary_only',
             nanotel_params.get('quick_run', False),
         )
+        max_telomere_start = nanotel_params.get('max_telomere_start', 150)
+        max_edge_distance = nanotel_params.get(
+            'max_edge_distance',
+            nanotel_params.get('min_edge_distance', 134),
+        )
 
         # Build command parts as individual arguments so paths with spaces
         # (for example "Telomere Analyzer") are quoted correctly.
@@ -532,6 +537,8 @@ class NanoTelProcessor(ProcessorBase):
             "--save_path", str(task['output_dir']),
             "--patterns", str(telomere_pattern),
             "--min_density", str(min_density),
+            "--max_telomere_start", str(max_telomere_start),
+            "--max_edge_distance", str(max_edge_distance),
         ]
 
         if summary_only:

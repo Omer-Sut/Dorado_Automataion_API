@@ -36,6 +36,7 @@ class WorkerThread(QObject):
             tvr_manual: str = "",
             read_length: str = "",
             max_distance_edge: str = "134",
+            max_telomere_start: str = "134",
             min_density_threshold: str = "0.75",
     ):
         """Store workflow settings that will be passed to run_pipeline."""
@@ -62,6 +63,7 @@ class WorkerThread(QObject):
         self.tvr_manual = tvr_manual
         self.read_length = read_length
         self.max_distance_edge = max_distance_edge
+        self.max_telomere_start = max_telomere_start
         self.min_density_threshold = min_density_threshold
         self._stop_requested = False
 
@@ -96,6 +98,7 @@ class WorkerThread(QObject):
                 tvr_manual=self.tvr_manual,
                 read_length=self.read_length,
                 max_distance_edge=self.max_distance_edge,
+                max_telomere_start=self.max_telomere_start,
                 min_density_threshold=self.min_density_threshold,
                 log_cb=self.log.emit,
                 stop_cb=lambda: self._stop_requested,

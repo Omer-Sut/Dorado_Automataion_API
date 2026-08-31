@@ -92,6 +92,16 @@ option_list = list(
               help = "Run post-processing filtration and produce filtered summary, stats txt, and plot.",
               metavar = "Run analysis"),
 
+  make_option("--max_telomere_start", action = "store", default = 150,
+              type = "integer",
+              help = "Maximum telomere start position retained during post-processing.",
+              metavar = "maximum telomere start"),
+
+  make_option("--max_edge_distance", action = "store", default = 134,
+              type = "integer",
+              help = "Maximum edge distance; retained reads must have sequence length minus running median greater than this value.",
+              metavar = "maximum edge distance"),
+
   make_option("--bias_prediction_model", action = "store", type = "character",
               default = NULL,
               help = paste("Path to the calibration .rds used for expected KM bias prediction.",
@@ -2578,8 +2588,8 @@ if (isTRUE(opt$analysis)) {
 
   # --- Step 1: Filter ---
   df_step1_filtered <- ans_list$df_summary %>%
-    dplyr::filter(telo_density_mismatch >= 0.75,
-                  Telomere_start_mismatch <= 134)
+    dplyr::filter(telo_density_mismatch >= opt$min_density,
+                  Telomere_start_mismatch <= opt$max_telomere_start)
 
   if (include_km_metrics) {
     # KM median is computed after the density/start filter and before the
@@ -2610,9 +2620,9 @@ if (isTRUE(opt$analysis)) {
   df_for_plot <- df_filtered %>%
     dplyr::mutate(read_index = seq_len(dplyr::n()))
 
-  # --- Step 4: Remove rows where difference < 134 ---
+  # --- Step 4: max edge distance < sequence length - running median ---
   df_filtered <- df_filtered %>%
-    dplyr::filter(SeqLen_minus_RunMed >= 134)
+    dplyr::filter(SeqLen_minus_RunMed > opt$max_edge_distance)
 
   # Write filtered sorted summary
   write_csv(x = df_filtered,

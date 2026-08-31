@@ -39,6 +39,7 @@
     "summary_only": false,
     "density_threshold": 0.75,
     "max_telomere_start": 150,
+    "max_edge_distance": 134,
     "tvr_patterns": [
       "TTAGGG",
       "TCAGGG",

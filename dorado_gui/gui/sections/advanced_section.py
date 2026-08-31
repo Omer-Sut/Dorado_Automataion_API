@@ -580,16 +580,19 @@ class AdvancedSection:
 
         self.read_length = QLineEdit("2000")
         self.max_distance_edge = QLineEdit("134")
+        self.max_telomere_start = QLineEdit("134")
         self.min_density_threshold = QLineEdit("0.75")
 
         self.read_length.setFixedWidth(74)
         self.max_distance_edge.setFixedWidth(74)
+        self.max_telomere_start.setFixedWidth(74)
         self.min_density_threshold.setFixedWidth(74)
 
         # Validators prevent invalid values before the options reach the
         # pipeline configuration layer.
         self.read_length.setValidator(QIntValidator(0, 10000))
         self.max_distance_edge.setValidator(QIntValidator(0, 1000))
+        self.max_telomere_start.setValidator(QIntValidator(0, 1000))
         validator = QDoubleValidator(0.0, 1.0, 3)
         validator.setNotation(QDoubleValidator.StandardNotation)
         self.min_density_threshold.setValidator(validator)
@@ -597,6 +600,7 @@ class AdvancedSection:
         for widget in [
             self.read_length,
             self.max_distance_edge,
+            self.max_telomere_start,
             self.min_density_threshold,
         ]:
             widget.setFixedHeight(34)
@@ -612,6 +616,7 @@ class AdvancedSection:
         """
         read_label = self._build_field_label("Min Read Length (bp)", 140, label_style)
         edge_label = self._build_field_label("Max Edge Distance", 140, label_style)
+        start_label = self._build_field_label("Max Telomere Start", 140, label_style)
         density_label = self._build_field_label("Min Density", 128, label_style)
 
         grid.addWidget(read_label, 0, 0)
@@ -620,7 +625,9 @@ class AdvancedSection:
         grid.addWidget(self.max_distance_edge, 0, 3)
         grid.addWidget(density_label, 1, 0)
         grid.addWidget(self.min_density_threshold, 1, 1)
-        grid.addWidget(self._build_nanotel_mapping_option(), 1, 2, 1, 2)
+        grid.addWidget(start_label, 1, 2)
+        grid.addWidget(self.max_telomere_start, 1, 3)
+        grid.addWidget(self._build_nanotel_mapping_option(), 2, 0, 1, 4)
         return grid
 
     @staticmethod

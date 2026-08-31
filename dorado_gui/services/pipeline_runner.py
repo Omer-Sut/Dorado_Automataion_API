@@ -42,6 +42,7 @@ def run_pipeline(
         tvr_manual: str = "",
         read_length: str = "",
         max_distance_edge: str = "134",
+        max_telomere_start: str = "134",
         min_density_threshold: str = "0.75",
         log_cb=None,
         stop_cb=None
@@ -83,6 +84,7 @@ def run_pipeline(
         tvr_manual=tvr_manual,
         read_length=read_length,
         max_distance_edge=max_distance_edge,
+        max_telomere_start=max_telomere_start,
         min_density_threshold=min_density_threshold,
     )
 
@@ -259,6 +261,7 @@ def _apply_gui_config_overrides(
         tvr_manual: str,
         read_length: str,
         max_distance_edge: str,
+        max_telomere_start: str,
         min_density_threshold: str,
 ) -> None:
     """Apply advanced GUI settings to workflow configuration."""
@@ -279,6 +282,7 @@ def _apply_gui_config_overrides(
         tvr_manual=tvr_manual,
         read_length=read_length,
         max_distance_edge=max_distance_edge,
+        max_telomere_start=max_telomere_start,
         min_density_threshold=min_density_threshold,
     )
     if nanotel_overrides:
@@ -467,6 +471,7 @@ def _build_nanotel_overrides(
         tvr_manual: str,
         read_length: str,
         max_distance_edge: str,
+        max_telomere_start: str,
         min_density_threshold: str,
 ) -> dict:
     """Convert GUI NanoTel advanced options into NanoTel overrides."""
@@ -477,9 +482,13 @@ def _build_nanotel_overrides(
         overrides["min_density"] = density
         overrides["density_threshold"] = density
 
-    max_start = _parse_int(max_distance_edge)
+    max_start = _parse_int(max_telomere_start)
     if max_start is not None:
         overrides["max_telomere_start"] = max_start
+
+    max_edge_distance = _parse_int(max_distance_edge)
+    if max_edge_distance is not None:
+        overrides["max_edge_distance"] = max_edge_distance
 
     read_length_value = _parse_int(read_length)
     if read_length_value is not None:

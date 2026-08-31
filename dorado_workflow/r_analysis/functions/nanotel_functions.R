@@ -32,6 +32,7 @@ if (!exists("log_message", mode = "function")) {
 process_nanotel_barcode <- function(nanotel_csv_path,
                                     density_threshold = 0.75,
                                     max_telomere_start = 150,
+                                    max_edge_distance = 134,
                                     min_read_length = NULL,
                                     min_mapq = 10) {
 
@@ -99,9 +100,10 @@ process_nanotel_barcode <- function(nanotel_csv_path,
   # Clean up sequence ID format (remove everything after first space)
   filtered_data$read_id <- sub(" .*", "", filtered_data$read_id)
 
-  # Final filter: keep only reads where seqLen_runningMED >= 0
+  # Keep reads satisfying:
+  # max_edge_distance < sequence_length - running_median.
   final_data <- filtered_data %>%
-    filter(seqLen_runningMED >= 0)
+    filter(seqLen_runningMED > max_edge_distance)
 
   # Add barcode identifier
   final_data$barcode <- barcode
@@ -117,6 +119,7 @@ batch_process_nanotel_files <- function(input_files,
                                         output_dir,
                                         density_threshold = 0.75,
                                         max_telomere_start = 150,
+                                        max_edge_distance = 134,
                                         min_read_length = NULL) {
 
   log_message(paste("Starting batch processing of", length(input_files), "NanoTel files"))
@@ -135,6 +138,7 @@ batch_process_nanotel_files <- function(input_files,
         file_path,
         density_threshold = density_threshold,
         max_telomere_start = max_telomere_start,
+        max_edge_distance = max_edge_distance,
         min_read_length = min_read_length
       )
 

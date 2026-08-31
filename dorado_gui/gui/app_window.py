@@ -612,6 +612,7 @@ class AppWindow(
 
             read_length=self.read_length.text().strip(),
             max_distance_edge=self.max_distance_edge.text().strip(),
+            max_telomere_start=self.max_telomere_start.text().strip(),
             min_density_threshold=self.min_density_threshold.text().strip(),
         )
 

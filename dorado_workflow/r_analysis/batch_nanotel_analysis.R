@@ -43,6 +43,7 @@ main_nanotel_analysis <- function(config_file) {
   # Set default parameters
   density_threshold <- config$density_threshold %||% 0.75
   max_telomere_start <- config$max_telomere_start %||% 150
+  max_edge_distance <- config$max_edge_distance %||% config$min_edge_distance %||% 134
   min_read_length <- config$read_length %||% NULL
 
   log_message("Configuration loaded successfully")
@@ -50,6 +51,7 @@ main_nanotel_analysis <- function(config_file) {
   log_message(paste("Output directory:", config$output_dir))
   log_message(paste("Density threshold:", density_threshold))
   log_message(paste("Max telomere start:", max_telomere_start))
+  log_message(paste("Maximum edge distance:", max_edge_distance))
   if (!is.null(min_read_length)) {
     log_message(paste("Minimum read length:", min_read_length))
   }
@@ -69,6 +71,7 @@ main_nanotel_analysis <- function(config_file) {
     output_dir = config$output_dir,
     density_threshold = density_threshold,
     max_telomere_start = max_telomere_start,
+    max_edge_distance = max_edge_distance,
     min_read_length = min_read_length
   )
 
@@ -114,6 +117,7 @@ generate_nanotel_report <- function(processed_data, summary_stats, output_file, 
     paste("  Output directory:", config$output_dir),
     paste("  Density threshold:", config$density_threshold %||% 0.75),
     paste("  Max telomere start:", config$max_telomere_start %||% 150),
+    paste("  Maximum edge distance:", config$max_edge_distance %||% config$min_edge_distance %||% 134),
     "",
     "PROCESSING RESULTS:",
     paste("  Total barcodes processed:", length(processed_data)),
