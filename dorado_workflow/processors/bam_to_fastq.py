@@ -102,12 +102,26 @@ class BamToFastqProcessor(ProcessorBase):
             attempted_barcodes = {task["barcode"] for task in tasks}
             skipped_barcodes = len(barcode_dirs) - len(attempted_barcodes)
 
+            successful_barcodes = sum(
+                1 for status in results_per_barcode.values()
+                if status == "success"
+            )
+            empty_barcodes = sum(
+                1 for status in results_per_barcode.values()
+                if status == "empty"
+            )
+            failed_barcodes = sum(
+                1 for status in results_per_barcode.values()
+                if status == "failed"
+            )
+
             stats = {
                 "total_barcodes": len(barcode_dirs),
                 "attempted_barcodes": len(attempted_barcodes),
                 "skipped_barcodes": skipped_barcodes,
-                "successful_conversions": sum(1 for v in results_per_barcode.values() if v),
-                "failed_conversions": sum(1 for v in results_per_barcode.values() if not v),
+                "empty_barcodes": empty_barcodes,
+                "successful_conversions": successful_barcodes,
+                "failed_conversions": failed_barcodes,
             }
 
             success = stats["failed_conversions"] == 0 and stats["successful_conversions"] > 0
@@ -129,6 +143,10 @@ class BamToFastqProcessor(ProcessorBase):
                 self.context.logger.warning(
                     f"Skipped {stats['skipped_barcodes']} barcode folders with no BAM files"
                 )
+            if stats["empty_barcodes"]:
+                self.context.logger.warning(
+                    f"Skipped {stats['empty_barcodes']} barcode(s) whose BAM files contained no reads"
+                )
 
             self.log_complete(result)
             return result
@@ -140,7 +158,7 @@ class BamToFastqProcessor(ProcessorBase):
             self.log_complete(result)
             return result
 
-    def _convert_parallel(self, tasks: list, max_workers: int = 4) -> Dict[str, bool]:
+    def _convert_parallel(self, tasks: list, max_workers: int = 4) -> Dict[str, str]:
         results = {}
 
         if not tasks:
@@ -148,35 +166,42 @@ class BamToFastqProcessor(ProcessorBase):
 
         def convert_single(task):
             try:
-                self._run_samtools_fastq(
+                has_output = self._run_samtools_fastq(
                     task["bam_file"],
                     task["output_fastq"],
                 )
 
-                if not self._has_fastq_output(task["output_fastq"]):
-                    raise RuntimeError(
-                        f"No FASTQ output was created: {task['output_fastq']}"
+                if not has_output:
+                    self.context.logger.warning(
+                        f"{task['barcode']}: BAM contains no reads; skipping empty barcode"
                     )
+                    return task["barcode"], "empty"
 
                 self.context.logger.info(
                     f"{task['barcode']}: {task['bam_file'].name} -> {task['output_fastq'].name}"
                 )
-                return task["barcode"], True
+                return task["barcode"], "success"
             except Exception as e:
                 if task["output_fastq"].exists() and task["output_fastq"].stat().st_size == 0:
                     task["output_fastq"].unlink()
                 self.context.logger.error(f"{task['barcode']}: Failed - {str(e)}")
-                return task["barcode"], False
+                return task["barcode"], "failed"
 
         with ThreadPoolExecutor(max_workers=min(max_workers, len(tasks))) as executor:
             futures = {executor.submit(convert_single, task): task for task in tasks}
             for future in as_completed(futures):
-                barcode, success = future.result()
-                results[barcode] = results.get(barcode, True) and success
+                barcode, status = future.result()
+                previous = results.get(barcode)
+                if previous == "failed" or status == "failed":
+                    results[barcode] = "failed"
+                elif previous == "success" or status == "success":
+                    results[barcode] = "success"
+                else:
+                    results[barcode] = "empty"
 
         return results
 
-    def _run_samtools_fastq(self, bam_file: Path, output_fastq: Path) -> subprocess.CompletedProcess:
+    def _run_samtools_fastq(self, bam_file: Path, output_fastq: Path) -> bool:
         command = self._build_samtools_command(bam_file)
         temp_fastq = output_fastq.with_name(f"{output_fastq.name}.tmp")
         command_text = f"{self._format_command(command)} > {self._quote_path(output_fastq)}"
@@ -195,7 +220,12 @@ class BamToFastqProcessor(ProcessorBase):
                 )
 
             if not self._has_fastq_output(temp_fastq):
-                raise RuntimeError(f"samtools created an empty FASTQ file: {temp_fastq}")
+                self.context.logger.mark_command_success(
+                    cmd_index,
+                    returncode=result.returncode,
+                    stderr=result.stderr,
+                )
+                return False
 
             temp_fastq.replace(output_fastq)
             self.context.logger.mark_command_success(
@@ -203,7 +233,7 @@ class BamToFastqProcessor(ProcessorBase):
                 returncode=result.returncode,
                 stderr=result.stderr,
             )
-            return result
+            return True
         except subprocess.CalledProcessError as e:
             self.context.logger.mark_command_failed(
                 cmd_index,

@@ -9,7 +9,6 @@ sys.path.insert(0, str(project_root))
 from gui.app_window import AppWindow
 from PySide6.QtWidgets import QApplication
 
-
 # PACKAGING TODO [PACKAGE-NAME]
 # Keep this synchronized with the final distribution name in pyproject.toml.
 DISTRIBUTION_NAME = "package-name-pending"
