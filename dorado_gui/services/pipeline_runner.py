@@ -38,7 +38,7 @@ def run_pipeline(
         chromosome_mapping: bool = False,
         nanotel_mapping: bool = False,
         summary_only: bool = False,
-        tvr_mode: str = "Use preset",
+        tvr_mode: str = "None",
         tvr_manual: str = "",
         read_length: str = "",
         max_distance_edge: str = "134",
@@ -494,15 +494,26 @@ def _build_nanotel_overrides(
     if read_length_value is not None:
         overrides["read_length"] = read_length_value
 
-    mode = (tvr_mode or "").strip().lower()
-    if mode == "none":
-        overrides["tvr_patterns"] = []
-    elif mode == "use preset":
-        overrides["tvr_patterns"] = config_manager.get_tvr_patterns(organism)
-    elif mode == "tsq1":
-        overrides["tvr_patterns"] = ["AACCGC"]
-    elif mode == "enter manual":
-        overrides["tvr_patterns"] = _parse_patterns(tvr_manual)
+    if isinstance(tvr_mode, (set, list, tuple)):
+        modes = {str(mode).strip().lower() for mode in tvr_mode}
+    else:
+        mode_text = str(tvr_mode or "").strip().lower()
+        modes = {
+            mode.strip()
+            for mode in mode_text.replace(",", "+").split("+")
+            if mode.strip() and mode.strip() != "none"
+        }
+
+    tvr_patterns = []
+    if "use preset" in modes:
+        tvr_patterns.extend(config_manager.get_tvr_patterns(organism))
+    if "tsq1" in modes:
+        tvr_patterns.append("AACCGC")
+    if "enter manual" in modes or "manual" in modes:
+        tvr_patterns.extend(_parse_patterns(tvr_manual))
+
+    # Preserve selection order while removing patterns duplicated across modes.
+    overrides["tvr_patterns"] = list(dict.fromkeys(tvr_patterns))
 
     return overrides
 

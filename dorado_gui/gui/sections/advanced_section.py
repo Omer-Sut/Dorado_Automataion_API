@@ -114,11 +114,12 @@ class AdvancedSection:
 
         self.basecalling_options_card = self._build_basecalling_options()
         self.nanotel_options_card = self._build_nanotel_options()
-
         # Keep references because WorkflowSection refreshes these cards whenever
         # the user selects or deselects an analysis step.
         row.addWidget(self.basecalling_options_card, 1)
         row.addWidget(self.nanotel_options_card, 1)
+        row.setStretch(0, 1)
+        row.setStretch(1, 1)
         box.setLayout(row)
 
         self._update_advanced_options_state()
@@ -262,7 +263,7 @@ class AdvancedSection:
 
         meth_title = QLabel("Methylation Type")
         meth_title.setStyleSheet("""
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 600;
             color: #374151;
             border: none;
@@ -285,7 +286,7 @@ class AdvancedSection:
 
         widget = QWidget()
         widget.setLayout(layout)
-        widget.setFixedWidth(360)
+        widget.setMinimumWidth(224)
         return widget
 
     def _build_mapping_option(self):
@@ -340,6 +341,7 @@ class AdvancedSection:
 
         widget = QWidget()
         widget.setLayout(layout)
+        widget.setFixedWidth(224)
         return widget
 
     def _build_nanotel_options(self):
@@ -443,11 +445,12 @@ class AdvancedSection:
         body_widget = QWidget()
         body_widget.setStyleSheet("background: white;")
         body = QVBoxLayout(body_widget)
-        body.setContentsMargins(16, 12, 16, 12)
-        body.setSpacing(10)
+        body.setContentsMargins(16, 10, 16, 10)
+        body.setSpacing(8)
 
         body.addLayout(self._build_tvr_mode_controls())
         body.addLayout(self._build_nanotel_fields())
+        body.addWidget(self._build_nanotel_mapping_option(), 0, Qt.AlignLeft)
 
         return body_widget
 
@@ -459,16 +462,16 @@ class AdvancedSection:
 
         self.nanotel_mapping.setStyleSheet("""
             QCheckBox {
-                font-size: 14px;
+                font-size: 13px;
                 color: #111827;
-                spacing: 10px;
+                spacing: 8px;
                 border: none;
                 background: transparent;
             }
 
             QCheckBox::indicator {
-                width: 18px;
-                height: 18px;
+                width: 16px;
+                height: 16px;
             }
 
             QCheckBox::indicator:unchecked {
@@ -487,33 +490,37 @@ class AdvancedSection:
         return self.nanotel_mapping
 
     def _build_tvr_mode_controls(self):
-        """Build the segmented TVR mode buttons."""
+        """Build optional TVR controls in one compact row."""
         tvr_row = QHBoxLayout()
         tvr_row.setSpacing(8)
 
         tvr_label = QLabel("TVR Mode")
         tvr_label.setStyleSheet("""
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 600;
             color: #374151;
             border: none;
             background: transparent;
         """)
-        tvr_label.setFixedWidth(80)
+        tvr_label.setToolTip(
+            "Leave all options unselected to run without TVR patterns. "
+            "Click a selected option again to clear it."
+        )
+        tvr_label.setFixedWidth(140)
+        tvr_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         tvr_row.addWidget(tvr_label)
 
-        self.none_btn = QPushButton("None")
         self.preset_btn = QPushButton("Use Preset")
         self.tsq1_btn = QPushButton("TSQ1")
         self.manual_btn = QPushButton("Manual")
 
         self.tvr_buttons = [
-            self.none_btn,
             self.preset_btn,
             self.tsq1_btn,
             self.manual_btn
         ]
-        self.selected_tvr_mode = "None"
+        self.selected_tvr_modes = set()
+        self.selected_tvr_mode = set()
         # Manual patterns are stored here even though the field itself is not
         # displayed; AppWindow reads the value when it creates the worker.
         self.tvr_manual = QLineEdit()
@@ -528,17 +535,18 @@ class AdvancedSection:
                     segmented_style,
                 )
             )
-            button.setStyleSheet(
-                active_style if button == self.none_btn else segmented_style
-            )
+            button.setStyleSheet(segmented_style)
 
-        button_widths = [72, 96, 72, 104]
-        for button, width in zip(self.tvr_buttons, button_widths):
-            button.setFixedWidth(width)
-            button.setFixedHeight(34)
-            tvr_row.addWidget(button)
+        button_tooltips = {
+            self.preset_btn: "Use the TVR patterns configured for the selected organism.",
+            self.tsq1_btn: "Use the TSQ1 TVR pattern.",
+            self.manual_btn: "Enter one or more TVR patterns manually.",
+        }
+        for button in self.tvr_buttons:
+            button.setFixedHeight(30)
+            button.setToolTip(button_tooltips[button])
+            tvr_row.addWidget(button, 1)
 
-        tvr_row.addStretch()
         return tvr_row
 
     @staticmethod
@@ -549,9 +557,9 @@ class AdvancedSection:
                 background: white;
                 color: #111827;
                 border: 1px solid #D1D5DB;
-                padding: 8px 14px;
+                padding: 6px 10px;
                 border-radius: 8px;
-                font-size: 13px;
+                font-size: 12px;
             }
 
             QPushButton:hover {
@@ -564,29 +572,30 @@ class AdvancedSection:
                 background: #2563EB;
                 color: white;
                 border: 1px solid #2563EB;
-                padding: 8px 14px;
+                padding: 6px 10px;
                 border-radius: 8px;
-                font-size: 13px;
+                font-size: 12px;
                 font-weight: 600;
             }
         """
         return active_style, inactive_style
 
     def _build_nanotel_fields(self):
-        """Build validated numeric NanoTel configuration fields."""
+        """Build validated NanoTel fields in a compact two-column grid."""
         grid = QGridLayout()
         grid.setHorizontalSpacing(10)
-        grid.setVerticalSpacing(10)
+        grid.setVerticalSpacing(12)
+        grid.setAlignment(Qt.AlignLeft)
 
         self.read_length = QLineEdit("2000")
         self.max_distance_edge = QLineEdit("134")
         self.max_telomere_start = QLineEdit("134")
         self.min_density_threshold = QLineEdit("0.75")
 
-        self.read_length.setFixedWidth(74)
-        self.max_distance_edge.setFixedWidth(74)
-        self.max_telomere_start.setFixedWidth(74)
-        self.min_density_threshold.setFixedWidth(74)
+        self.read_length.setFixedWidth(68)
+        self.max_distance_edge.setFixedWidth(68)
+        self.max_telomere_start.setFixedWidth(68)
+        self.min_density_threshold.setFixedWidth(68)
 
         # Validators prevent invalid values before the options reach the
         # pipeline configuration layer.
@@ -603,14 +612,16 @@ class AdvancedSection:
             self.max_telomere_start,
             self.min_density_threshold,
         ]:
-            widget.setFixedHeight(34)
+            widget.setFixedHeight(32)
+            widget.setAlignment(Qt.AlignCenter)
+            widget.setStyleSheet("font-size: 11px; padding: 2px 6px;")
 
         label_style = """
             QLabel {
                 background: transparent;
                 border: none;
                 color: #111827;
-                font-size: 14px;
+                font-size: 13px;
                 font-weight: 500;
             }
         """
@@ -623,11 +634,10 @@ class AdvancedSection:
         grid.addWidget(self.read_length, 0, 1)
         grid.addWidget(edge_label, 0, 2)
         grid.addWidget(self.max_distance_edge, 0, 3)
-        grid.addWidget(density_label, 1, 0)
-        grid.addWidget(self.min_density_threshold, 1, 1)
-        grid.addWidget(start_label, 1, 2)
-        grid.addWidget(self.max_telomere_start, 1, 3)
-        grid.addWidget(self._build_nanotel_mapping_option(), 2, 0, 1, 4)
+        grid.addWidget(start_label, 1, 0)
+        grid.addWidget(self.max_telomere_start, 1, 1)
+        grid.addWidget(density_label, 1, 2)
+        grid.addWidget(self.min_density_threshold, 1, 3)
         return grid
 
     @staticmethod
@@ -656,18 +666,29 @@ class AdvancedSection:
         Returns:
             None
         """
+        # TVR modes are independent: any combination of Preset, TSQ1, and
+        # Manual may be active. No active buttons means TVR is disabled.
+        selected_mode = (
+            "Enter Manual" if selected_btn == self.manual_btn
+            else selected_btn.text()
+        )
+        if selected_mode in self.selected_tvr_modes:
+            self.selected_tvr_modes.remove(selected_mode)
+            selected_btn.setStyleSheet(segmented_style)
+            if selected_btn == self.manual_btn:
+                self.tvr_manual.clear()
+            self.selected_tvr_mode = set(self.selected_tvr_modes)
+            return
+
         if selected_btn == self.manual_btn:
             patterns = self._prompt_manual_tvr_patterns()
             if patterns is None:
                 return
             self.tvr_manual.setText(patterns)
 
-        for btn in self.tvr_buttons:
-            if btn == selected_btn:
-                btn.setStyleSheet(active_style)
-            else:
-                btn.setStyleSheet(segmented_style)
-        self.selected_tvr_mode = "Enter Manual" if selected_btn == self.manual_btn else selected_btn.text()
+        self.selected_tvr_modes.add(selected_mode)
+        selected_btn.setStyleSheet(active_style)
+        self.selected_tvr_mode = set(self.selected_tvr_modes)
 
     def _prompt_manual_tvr_patterns(self):
         """

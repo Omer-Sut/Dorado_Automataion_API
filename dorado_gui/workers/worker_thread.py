@@ -32,7 +32,7 @@ class WorkerThread(QObject):
             chromosome_mapping: bool = False,
             nanotel_mapping: bool = False,
             summary_only: bool = False,
-            tvr_mode: str = "Use preset",
+            tvr_mode: str = "None",
             tvr_manual: str = "",
             read_length: str = "",
             max_distance_edge: str = "134",
